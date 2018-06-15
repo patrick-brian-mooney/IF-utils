@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """A program to extract Infocom z-code files from Apple II disk images. Inspired
 by Steve Hugg's AP2IFC, but rewritten in a modern language that should make it
-accessible to anyone, not just people running DOS.
+accessible to anyone, not just people running DOS. It also contains a few
+additional enhancements.
 
 Usage:
     
@@ -21,7 +22,7 @@ import os, sys
 versionLoc  = 0x3000
 numWordsLoc = 0x301a
 
-numSects  =  31*16
+numSects  =  31 * 16
 secTbl  = (0, 13, 11, 9, 7, 5, 3, 1, 14, 12, 10, 8, 6, 4, 2, 15)
 wordsPerSect = (128, 128, 128, 64, 64) + (64, 64, 64)               # Note that the last three are purely conjectural
 
@@ -38,7 +39,7 @@ def do_extract(inputfile):
         print("... success.")
         ver = ord(source.read(1))
         if ver not in range(1,9):
-            print("Error: version in file is apparently %d; is disk image corrupt?")
+            print("Error: Z-code version in file is apparently %d; is disk image corrupt?")
             print("Quitting ...\n\n")
             sys.exit(2)
         else:
