@@ -8,11 +8,15 @@ additional enhancements.
 Usage:
     
     ./ap2zc.py INPUT_FILE
+    
+Note that ap2zc only understands Apple II disk images in "raw 256-byte sector"
+format. (The file length should always be 143360 bytes.) It assumes Infocom's
+standard interleaving methodology.
 
-The ap2zc program is part of a developing suite of interactive fiction-related
-utilities. It is copyright 2018 by Patrick Mooney. It is released under the GNU
-GPL, either version 3 or (at your option) any later version. See the file 
-LICENSE.MD for details.
+The ap2zc program is part of a group of interactive fiction-related utilities
+by Patrick Mooney. It is copyright 2018. It is released under the GNU GPL,
+either version 3 or (at your option) any later version. See the file 
+LICENSE.md for details.
 
 """
 
@@ -33,6 +37,7 @@ def print_usage(exit_code=0):
 
 
 def do_extract(inputfile):
+    assert os.path.getsize(inputfile) == 143360, "ERROR: bad disk image format or disk image is damaged!"
     print("opening %s ..." % inputfile, end=" ")
     with open(inputfile, 'rb') as source:
         source.seek(versionLoc)
@@ -57,7 +62,7 @@ def do_extract(inputfile):
                 sector = secTbl[i % 16]
                 source.seek(versionLoc + (track * 16 + sector) * 256)
                 dest.write(source.read(256))
-            print("... finished.")
+            print("... finished.\n")
 
 
 if __name__ == "__main__":
