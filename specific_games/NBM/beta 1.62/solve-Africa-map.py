@@ -121,6 +121,7 @@ def path_to_key(the_path:list) -> str:
     return str(the_path)
 """
 
+
 def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     """Recursively checks all exits not yet visited to see whether they lead to a
     solution. If it finds one, it prints it. If there are no so-far-unvisited exits,
@@ -138,7 +139,8 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     EXPLORED_PATHS_FILE. On startup, the function load_previous_progress() reads
     this file and uses it to reconstruct the progress already made on the previous
     run(s). (Not all of it, but merely the bits that have been checkpointed by
-    grouping "strands" according to the first PATH_LENGTH_TO_TRACK segments.)
+    grouping "strands" according to the first PATH_LENGTH_TO_TRACK segments. Still,
+    this is much better than having to re-start from scratch.)
     """
     global successful_paths, dead_end_paths
 
@@ -180,7 +182,7 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
         print('  --updated data store!)\n')
 
 
-def solve_maze():
+def solve_maze() -> None:
     """Solve the maze, starting from Gambia."""
     print('Beginning program run!\n')
     find_path_from('GM')
