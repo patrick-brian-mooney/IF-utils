@@ -98,7 +98,7 @@ def sanity_check() -> None:
                 print("ERROR! state %s has a neighbor, %s, that isn't defined as a state!" % (state, n))
                 error = True
             elif state not in borders[n]:
-                    print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, state, n))
+                    print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, n, state))
                     error = True
     if error:
         print("Unable to validate data!")
