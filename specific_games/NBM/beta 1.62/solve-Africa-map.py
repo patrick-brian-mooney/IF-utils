@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """A quick hack to help solve the Africa-map puzzle in beta version 1.62 of Greg
-Boettcher's Nothing But Mazes (2019).
+Boettcher's Nothing But Mazes (2019). Because of the enormous number of
+possible paths through the maze, this script takes a LONG TIME (weeks!) to scan
+them all. For this reason, it periodically checkpoints its work in a JSON file
+so it doesn't have to restart from scratch if it's interrupted.
 
 This script is copyright 2019 by Patrick Mooney. You may use it for any purpose
 whatsoever provided that this copyright notice, unchanged, accompanies the
@@ -16,13 +19,17 @@ import datetime, json, os, sys
 start_time = datetime.datetime.now()
 successful_paths, dead_end_paths = 0, 0
 
-# Parameters for tracking previous work, in case we get interrupeted
+# Parameters for tracking previous work, in case we get interrupted
 explored_paths = dict()
 successful_paths_file = os.path.join(os.getcwd(), 'successful_paths_Africa.txt')
 
-# Changing this next constant (effectively) silently forces the run to re-start, but doesn't reset any of its statistics. Worst of both worlds.
+# Changing this next constant more or less (effectively) silently forces the run to re-start (well ... more or less), but doesn't reset any of its statistics.
 path_length_to_track = 10
+minimum_trackable_length = 4
 explored_paths_file = os.path.join(os.getcwd(), "explored_paths_Africa.json")
+
+# Quick sanity check.
+assert path_length_to_track >= minimum_trackable_length
 
 # And data for the problem set.
 borders = {
@@ -105,12 +112,14 @@ def time_so_far() -> float:
     return (datetime.datetime.now() - start_time).total_seconds()
 
 
+path_to_key = str           # Called so often that we just rebind to make them equivalent to save on the overhead from the calling-returning wrapper.
+"""
 def path_to_key(the_path:list) -> str:
-    """Converts THE_PATH (a list of previously-visited country codes) into a canonical
-    representation used to index the global dictionary EXPLORED_PATHS.
-    """
+    #Converts THE_PATH (a list of previously-visited country codes) into a canonical
+    #representation used to index the global dictionary EXPLORED_PATHS.
+    #
     return str(the_path)
-
+"""
 
 def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     """Recursively checks all exits not yet visited to see whether they lead to a
@@ -136,8 +145,9 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     if not path_so_far:
         path_so_far = [starting_point]
 
-    if len(path_so_far) == path_length_to_track:            # If we've tracked that we've explored this in a previous run, just skip this branch.
-        if path_to_key(path_so_far) in explored_paths:
+    # If we've tracked that we've explored this strand, or ancestral strand including this on, in a previous run, just skip this branch.
+    for i in range(minimum_trackable_length, len(path_so_far) + 1):    
+        if path_to_key(path_so_far[:i]) in explored_paths:
             return
 
     unvisited_states = [s for s in borders if s not in path_so_far]
@@ -159,7 +169,7 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
             print('  (%d million dead-end paths so far, in %.2f minutes)' % (dead_end_paths / 1000000, time_so_far()/60))
 
     if len(path_so_far) == path_length_to_track:        # If we've just finished a branch, document we've finished it
-        print('    (fully explored path ' + ' -> '.join(path_so_far), end=': ')
+        print('    (fully explored path ' + ' -> '.join(path_so_far), end=' -> ... ')
         explored_paths[path_to_key(path_so_far)] = {
             'success': successful_paths,
             'dead ends': dead_end_paths,
@@ -167,7 +177,7 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
             }
         with open(explored_paths_file, mode='w') as json_file:
             json.dump(explored_paths, json_file, indent=4)
-        print(' ... updated data store!)')
+        print('  --updated data store!)\n')
 
 
 def solve_maze():
