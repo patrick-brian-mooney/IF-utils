@@ -12,7 +12,7 @@ script.
 """
 
 
-import datetime, json, os, sys
+import datetime, json, os, signal, sys
 
 
 # Set up basic parameters. If we have previous work checkpointed, these will all be overwritten.
@@ -23,8 +23,15 @@ successful_paths, dead_end_paths = 0, 0
 explored_paths = dict()
 successful_paths_file = os.path.join(os.getcwd(), 'successful_paths_Africa.txt')
 
-# Changing this next constant more or less (effectively) silently forces the run to re-start (well ... more or less), but doesn't reset any of its statistics.
-path_length_to_track = 10
+# Some basic info for tracking how long it's been since we've saved.
+save_interval = 4 * 60 * 60                 # seconds
+last_save_time = datetime.datetime.now()
+force_save_after_next_node = False          # Sending signal USR2 to the script will set this to True, causing progress to be saved "relatively soon."
+
+# Changing this next constant has subtle implications for data tracking. All in all, it's best to increase, not decrease, it, but not by too much.
+path_length_to_track = 12
+
+# Other tracking parameters.
 minimum_trackable_length = 4
 explored_paths_file = os.path.join(os.getcwd(), "explored_paths_Africa.json")
 
@@ -108,7 +115,12 @@ def sanity_check() -> None:
 
 
 def time_so_far() -> float:
-    """Convenience function that returns the number of seconds since the run started."""
+    """Convenience function that returns the number of seconds since the run started.
+    If the run has been interrupted and restarted from checkpointing data, it
+    returns the total time spent including checkpointed time on previous runs, since
+    the load_previous_progress() function futzes the START_TIME global to make this
+    possible.
+    """
     return (datetime.datetime.now() - start_time).total_seconds()
 
 
@@ -122,10 +134,32 @@ def path_to_key(the_path:list) -> str:
 """
 
 
+def save_progress(current_path: list) -> None:
+    """Writes out the current progress data to EXPLORED_PATHS_FILE, first adding
+    CURRENT_PATH as a path that has been completely explored, along with all of the
+    relevant timing and counting data.
+    """
+    global successful_paths, dead_end_paths
+    global explored_paths
+    global last_save_time
+
+    print('    (fully explored path ' + ' -> '.join(current_path), end=' -> ... ')
+    explored_paths[path_to_key(current_path)] = {
+        'success': successful_paths,
+        'dead ends': dead_end_paths,
+        'time': time_so_far()
+        }
+    with open(explored_paths_file, mode='w') as json_file:
+        json.dump(explored_paths, json_file, indent=4)
+    print('  --updated data store!)\n')
+
+    last_save_time = datetime.datetime.now()
+
+
 def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     """Recursively checks all exits not yet visited to see whether they lead to a
-    solution. If it finds one, it prints it. If there are no so-far-unvisited exits,
-    it just returns, allowing other branches to be explored.
+    solution. If it finds one, it prints it. If there are no so-far-unvisited exits
+    from STARTING_POINT, it just returns, allowing other branches to be explored.
 
     Because the script takes an incredibly long time to run (weeks!), it tracks how
     much partial progress it's made: it groups all possible paths into "strands"
@@ -143,16 +177,27 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     this is much better than having to re-start from scratch.)
     """
     global successful_paths, dead_end_paths
+    global explored_paths
+    global last_save_time
+    global force_save_after_next_node
 
     if not path_so_far:
         path_so_far = [starting_point]
 
-    # If we've tracked that we've explored this strand, or ancestral strand including this on, in a previous run, just skip this branch.
-    for i in range(minimum_trackable_length, len(path_so_far) + 1):    
+    # If we've tracked that we've explored this strand, or an ancestral strand including this one, in a previous run, just skip this branch.
+    for i in range(minimum_trackable_length, len(path_so_far) + 1):
         if path_to_key(path_so_far[:i]) in explored_paths:
             return
 
-    unvisited_states = [s for s in borders if s not in path_so_far]
+    # Detect early: are we going to force a save at this level? Either because we caught -USR2 or because it's been a long time?
+    if ((datetime.datetime.now() - last_save_time).total_seconds() > save_interval) or force_save_after_next_node:
+        force_save = True                               # Mark that we're going to save when we've finished exploring all paths that start from here.
+        force_save_after_next_node = False
+        last_save_time = datetime.datetime.now()        # Reset the counter; it'll be corrected when we actually save at the end of this invocation.
+    else:                                                   # If we don't reset the counter, the path saved will be a super-specific dead end.
+        force_save = False
+
+    unvisited_states = [s for s in borders if s not in path_so_far]     # Make a list of all states in Africa that have not yet been visited in this path.
     if not unvisited_states:
         successful_paths += 1
         print("Solution #%d found! ... in %.3f seconds." % (successful_paths, time_so_far()))
@@ -170,16 +215,10 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
         if dead_end_paths % 1000000 == 0:
             print('  (%d million dead-end paths so far, in %.2f minutes)' % (dead_end_paths / 1000000, time_so_far()/60))
 
-    if len(path_so_far) == path_length_to_track:        # If we've just finished a branch, document we've finished it
-        print('    (fully explored path ' + ' -> '.join(path_so_far), end=' -> ... ')
-        explored_paths[path_to_key(path_so_far)] = {
-            'success': successful_paths,
-            'dead ends': dead_end_paths,
-            'time': time_so_far()
-            }
-        with open(explored_paths_file, mode='w') as json_file:
-            json.dump(explored_paths, json_file, indent=4)
-        print('  --updated data store!)\n')
+    if (len(path_so_far) == path_length_to_track):                      # Document we've finished this path, if it's the exact right length.
+        save_progress(path_so_far)
+    elif force_save:                                                    # Or if it's been long enough, or we caught the USR2 signal.
+        save_progress(path_so_far)
 
 
 def solve_maze() -> None:
@@ -203,12 +242,47 @@ def load_previous_progress() -> None:
         print("\nSuccessfully loaded previous progress data!")
         print("  ... %d successful paths and %d dead end paths in %.3f hours so far.\n\n" % (successful_paths, dead_end_paths, (total_seconds_elapsed / 3600)))
     except Exception as err:            # Everything's already been initialized to being blank at the beginning of the script's run, anyway.
-        print("Unable to load previous status data! Starting from scratch ...") 
+        print("Unable to load previous status data! Starting from scratch ...")
+
+
+def processUSR1(*args, **kwargs) -> None:
+    """Handle the USR1 signal by printing current status info."""
+    print("\nCurrent status:")
+    print("    successful paths:     ", successful_paths)
+    print("    dead end paths:       ", dead_end_paths)
+    print("    total time:            %.3f minutes" % (time_so_far() / 60))
+    print("    time since last save:  %.3f minutes" % ((datetime.datetime.now() - last_save_time).total_seconds() / 60))
+    print()
+
+
+def processUSR2(*args, **kwargs) -> None:
+    """Handle the USR2 signal by saving the current status.
+
+    In point of fact, we don't save the current status here. We merely set a global
+    flag that will cause the current status to be saved when the current node is
+    completely evaluated. This will usually mean that the current status is saved
+    relatively quickly, because the algorithm actually spends most of its time
+    tracing dead-ends, but there is no guarantee of this. It depends on where the
+    algorithm is when the signal is caught.
+
+    Note that "saving progress" in this way is better than nothing, but doesn't
+    guarantee that NO work will have to be re-performed on the next run.
+    """
+    global force_save_after_next_node
+    force_save_after_next_node = True
+    print("Caught USR2 signal at %s, scheduling progress save ..." % datetime.datetime.now())
+    processUSR1()           # Also display current status
+
+
+def set_up() -> None:
+    load_previous_progress()
+    signal.signal(signal.SIGUSR1, processUSR1)
+    signal.signal(signal.SIGUSR2, processUSR2)
 
 
 if __name__ == "__main__":
     sanity_check()
-    load_previous_progress()
+    set_up()
     solve_maze()
     print('\n\nDONE! There were %d solutions and %d dead ends found.' % (successful_paths, dead_end_paths))
     print('Exploring the map took %.3f hours.' % (time_so_far()/3600))
