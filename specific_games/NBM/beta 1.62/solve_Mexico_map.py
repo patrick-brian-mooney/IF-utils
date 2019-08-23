@@ -9,7 +9,7 @@ script.
 """
 
 
-import datetime, os, sys
+import datetime, os, shutil, sys, textwrap
 
 
 # Set up basic parameters.
@@ -24,40 +24,48 @@ borders = {
     'Baja California': ['Baja California Sur', 'Sonora'],
     'Sonora': ['Baja California', 'Chihuahua', 'Sinaloa'],
     'Chihuahua': ['Sonora', 'Sinaloa', 'Durango', 'Coahuila'],
-    'Coahuila': ['Chihuahua', 'Durango', 'Zacatecas', 'Nuevo Leon'],
-    'Nuevo Leon': ['Coahuila', 'San Luis Potosi', 'Tamaulipas'],
-    'Tamaulipas': ['Nuevo Leon', 'San Luis Potosi', 'Veracruz'],
-    'San Luis Potosi': ['Nuevo Leon', 'Tamaulipas', 'Veracruz', 'Hidalgo', 'Queretaro', 'Guanajuato', 'Jalisco', 'Zacatecas'],
-    'Zacatecas': ['Coahuila', 'San Luis Potosi', 'Jalisco', 'Aguascalientes', 'Nayarit', 'Durango'],
+    'Coahuila': ['Chihuahua', 'Durango', 'Zacatecas', 'Nuevo León'],
+    'Nuevo León': ['Coahuila', 'San Luis Potosí', 'Tamaulipas'],
+    'Tamaulipas': ['Nuevo León', 'San Luis Potosí', 'Veracruz'],
+    'San Luis Potosí': ['Nuevo León', 'Tamaulipas', 'Veracruz', 'Hidalgo', 'Querétaro', 'Guanajuato', 'Jalisco', 'Zacatecas'],
+    'Zacatecas': ['Coahuila', 'San Luis Potosí', 'Jalisco', 'Aguascalientes', 'Nayarit', 'Durango'],
     'Aguascalientes': ['Zacatecas', 'Jalisco'],
     'Durango': ['Chihuahua', 'Coahuila', 'Zacatecas', 'Nayarit', 'Sinaloa'],
     'Sinaloa': ['Sonora', 'Chihuahua', 'Durango', 'Nayarit'],
     'Nayarit': ['Sinaloa', 'Durango', 'Zacatecas', 'Jalisco'],
-    'Jalisco': ['Nayarit', 'Zacatecas', 'Aguascalientes', 'San Luis Potosi', 'Guanajuato', 'Michoacan', 'Colima'],
-    'Colima': ['Jalisco', 'Michoacan'],
-    'Michoacan': ['Colima', 'Jalisco', 'Guanajuato', 'Queretaro', 'Mexico', 'Guerrero'],
-    'Guanajuato': ['San Luis Potosi', 'Queretaro', 'Michoacan', 'Jalisco'],
-    'Queretaro': ['San Luis Potosi', 'Hidalgo', 'Mexico', 'Michoacan', 'Guanajuato'],
-    'Mexico': ['Hidalgo', 'Tlaxcala', 'Puebla', 'Morelos', 'Distrito Federal', 'Guerrero', 'Michoacan', 'Queretaro'],
-    'Hidalgo': ['San Luis Potosi', 'Veracruz', 'Puebla', 'Tlaxcala', 'Mexico', 'Queretaro'],
-    'Tlaxcala': ['Puebla', 'Mexico', 'Hidalgo'],
-    'Puebla': ['Veracruz', 'Oaxaca', 'Guerrero', 'Morelos', 'Mexico', 'Tlaxcala', 'Hidalgo'],
-    'Morelos': ['Mexico', 'Distrito Federal', 'Puebla', 'Guerrero'],
-    'Distrito Federal': ['Mexico', 'Morelos'],
-    'Guerrero': ['Michoacan', 'Mexico', 'Morelos', 'Puebla', 'Oaxaca'],
+    'Jalisco': ['Nayarit', 'Zacatecas', 'Aguascalientes', 'San Luis Potosí', 'Guanajuato', 'Michoacán', 'Colima'],
+    'Colima': ['Jalisco', 'Michoacán'],
+    'Michoacán': ['Colima', 'Jalisco', 'Guanajuato', 'Querétaro', 'México', 'Guerrero'],
+    'Guanajuato': ['San Luis Potosí', 'Querétaro', 'Michoacán', 'Jalisco'],
+    'Querétaro': ['San Luis Potosí', 'Hidalgo', 'México', 'Michoacán', 'Guanajuato'],
+    'México': ['Hidalgo', 'Tlaxcala', 'Puebla', 'Morelos', 'Distrito Federal', 'Guerrero', 'Michoacán', 'Querétaro'],
+    'Hidalgo': ['San Luis Potosí', 'Veracruz', 'Puebla', 'Tlaxcala', 'México', 'Querétaro'],
+    'Tlaxcala': ['Puebla', 'México', 'Hidalgo'],
+    'Puebla': ['Veracruz', 'Oaxaca', 'Guerrero', 'Morelos', 'México', 'Tlaxcala', 'Hidalgo'],
+    'Morelos': ['México', 'Distrito Federal', 'Puebla', 'Guerrero'],
+    'Distrito Federal': ['México', 'Morelos'],
+    'Guerrero': ['Michoacán', 'México', 'Morelos', 'Puebla', 'Oaxaca'],
     'Oaxaca': ['Guerrero', 'Puebla', 'Veracruz', 'Chiapas'],
-    'Veracruz': ['Tamaulipas', 'San Luis Potosi', 'Hidalgo', 'Puebla', 'Oaxaca', 'Chiapas', 'Tabasco'],
+    'Veracruz': ['Tamaulipas', 'San Luis Potosí', 'Hidalgo', 'Puebla', 'Oaxaca', 'Chiapas', 'Tabasco'],
     'Chiapas': ['Oaxaca', 'Veracruz', 'Tabasco'],
     'Tabasco': ['Veracruz', 'Chiapas', 'Campeche'],
-    'Campeche': ['Tabasco', 'Yucatan', 'Quintana Roo'],
-    'Quintana Roo': ['Campeche', 'Yucatan'],
-    'Yucatan': ['Campeche', 'Quintana Roo'],
+    'Campeche': ['Tabasco', 'Yucatán', 'Quintana Roo'],
+    'Quintana Roo': ['Campeche', 'Yucatán'],
+    'Yucatán': ['Campeche', 'Quintana Roo'],
 }
 
 
 def time_so_far() -> float:
     """Convenience function that returns the number of seconds since the run started."""
     return (datetime.datetime.now() - start_time).total_seconds()
+
+
+def print_solution(solution: str) -> None:
+    """Pretty-print the solution we've found to the maze."""
+    chosen_width = max(shutil.get_terminal_size()[0], 40)
+    for line_num, line in enumerate(textwrap.wrap(solution, width=chosen_width-6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
+        print("  " if not line_num else "    ", end="")     # Indent all lines after first.
+        print(line.strip())
 
 
 def find_path_from(starting_point:str, path_so_far:list=None) -> None:
@@ -71,7 +79,8 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     if not unvisited_states:
         successful_paths += 1        
         print("Solution #%d found! ... in %.3f seconds." % (successful_paths, time_so_far()))
-        print('    ' + ' -> '.join(path_so_far) + '\n')
+        print_solution(' -> '.join(path_so_far))
+        print('\n')
         with open(solutions_file, mode="at") as success_file:
             success_file.write('path #%d (%.3f seconds): %s \n' % (successful_paths, time_so_far(), ' -> '.join(path_so_far)))
         return

@@ -12,7 +12,7 @@ script.
 """
 
 
-import datetime, json, os, signal, sys
+import datetime, json, os, shutil, signal, sys, textwrap
 
 
 # Set up basic parameters. If we have previous work checkpointed, these will all be overwritten.
@@ -151,9 +151,17 @@ def save_progress(current_path: list) -> None:
         }
     with open(explored_paths_file, mode='w') as json_file:
         json.dump(explored_paths, json_file, indent=4)
-    print('  --updated data store!)\n')
+    print('  --updated progress data!)\n')
 
     last_save_time = datetime.datetime.now()
+
+
+def print_solution(solution: str) -> None:
+    """Pretty-print the solution we've found to the maze."""
+    chosen_width = max(shutil.get_terminal_size()[0], 40)
+    for line_num, line in enumerate(textwrap.wrap(solution, width=chosen_width-6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
+        print("  " if not line_num else "    ", end="")     # Indent all lines after first.
+        print(line.strip())
 
 
 def find_path_from(starting_point:str, path_so_far:list=None) -> None:
@@ -200,10 +208,11 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     unvisited_states = [s for s in borders if s not in path_so_far]     # Make a list of all states in Africa that have not yet been visited in this path.
     if not unvisited_states:
         successful_paths += 1
-        print("Solution #%d found! ... in %.3f seconds." % (successful_paths, time_so_far()))
-        print('    ' + ' -> '.join(path_so_far) + '\n')
+        print("Solution #%d found! ... in %.3f hours." % (successful_paths, time_so_far()/3600))
+        print_solution(' -> '.join(path_so_far))
+        print('\n')
         with open(successful_paths_file, mode="at") as success_file:
-            success_file.write('path #%d (%.3f seconds): %s \n' % (successful_paths, time_so_far(), ' -> '.join(path_so_far)))
+            success_file.write('path #%d (%.3f seconds): %s \n' % (successful_paths, time_so_far(), ' -> '.join(path_so_far)), '\n\n')
         return
 
     possible_steps = [s for s in borders[starting_point] if s not in path_so_far]
@@ -241,7 +250,7 @@ def load_previous_progress() -> None:
         start_time = datetime.datetime.now() - datetime.timedelta(seconds=total_seconds_elapsed)
         print("\nSuccessfully loaded previous progress data!")
         print("  ... %d successful paths and %d dead end paths in %.3f hours so far.\n\n" % (successful_paths, dead_end_paths, (total_seconds_elapsed / 3600)))
-    except Exception as err:            # Everything's already been initialized to being blank at the beginning of the script's run, anyway.
+    except Exception as err:            # Everything's already been initialized to being blank at the top of the script, anyway.
         print("Unable to load previous status data! Starting from scratch ...")
 
 
