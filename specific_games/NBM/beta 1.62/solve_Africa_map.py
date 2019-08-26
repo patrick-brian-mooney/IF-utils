@@ -105,8 +105,8 @@ def sanity_check() -> None:
                 print("ERROR! state %s has a neighbor, %s, that isn't defined as a state!" % (state, n))
                 error = True
             elif state not in borders[n]:
-                    print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, n, state))
-                    error = True
+                print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, n, state))
+                error = True
     if error:
         print("Unable to validate data!")
         sys.exit(1)
@@ -124,7 +124,8 @@ def time_so_far() -> float:
     return (datetime.datetime.now() - start_time).total_seconds()
 
 
-path_to_key = str           # Called so often that we just rebind to make them equivalent to save on the overhead from the calling-returning wrapper.
+# We now just use str() directly, so this is all redundant and only remains here to save a little typing if key indexing format ever needs to change.
+# path_to_key = str           # Called so often that we just rebind to make them equivalent to save on the overhead from the calling-returning wrapper.
 """
 def path_to_key(the_path:list) -> str:
     #Converts THE_PATH (a list of previously-visited country codes) into a canonical
@@ -132,6 +133,72 @@ def path_to_key(the_path:list) -> str:
     #
     return str(the_path)
 """
+
+
+def is_redundant_strand(which_path: str) -> bool:
+    """If the path in WHICH_PATH is redundant relative to the global progress store
+    EXPLORED_PATHS, returns True; otherwise, returns False.
+
+    "Redundant" means that the path in WHICH_PATH need not be stored, because the
+    checkpointing data already includes a higher-order checkpoint that obviates the
+    need to store this more-specific checkpoint. So if the higher-order path
+    [c1, c2, c3, c4, c5] has been checkpointed, we need not checkpoint any of the
+    more specific checkpoints [c1, c2, c3, c4, c5, c6, ...], because we've already
+    determined that they've been explored fully by checkpointing the higher-order
+    (i.e., shorter) path as completely explored.
+
+    If WHICH_PATH is exactly equal to a key in the global EXPLORED_PATHS, this is
+    not considered a match on its own: True is returned only if the path is also
+    made redundant by a higher-order (i.e., shorter path length) key also existing.
+    """
+    global explored_paths
+
+    # if """'GM', 'SN', 'MR', 'EH', 'MA', 'DZ', 'ML', 'NE', 'LY'""" in which_path:
+    #     print('breakpoint here!')
+
+    for key in explored_paths:
+        # if """'GM', 'SN', 'MR', 'EH', 'MA', 'DZ', 'ML', 'NE', 'LY'""" in which_path:
+        #     print('breakpoint here!')
+        if (which_path.startswith(key.rstrip(']'))) and (which_path != key):
+            return True
+    return False
+
+
+def clean_progress_data() -> None:
+    """Clean up the currently stored progress data by simplifying the data stored in
+    the global variable EXPLORED_PATHS.
+
+    This cleans out the EXPLORED_PATHS dictionary by taking advantage of the fact
+    that, for each checkpointed path [p1, p2, p3, p4, p5, ...], the evaluation of
+    global progress data first checks for [p1, p2, p3, p4, p5] as well as all other
+    higher-order paths ([p1, p2, p3, p4] and [p1, p2, p3], etc.). That is to say
+    that having [p1, p2, p3, p4] checkpointed makes it unnecessary to also have the
+    sub-paths [p1, p2, p3, p4, p5, ...] checkpointed, because the higher-order path
+    is also checkpointed. So once [p1, p2, p3, p4] (for instance) is checkpointed,
+    any more specific sub-paths no longer need to be checkpointed.
+
+    But these higher-order, more-specific sub-paths have ALREADY been checkpointed
+    along the way, because we checkpoint all fully explored paths that are at most
+    PATH_LENGTH_TO_TRACK, once they become fully checkpointed. this means that,
+    when we complete exploring a tree of length less than PATH_LENGTH_TO_TRACK, we
+    need to clean up the more specific tracking data that got us to this point.
+
+    That's what this function does: it checks over each key in the global
+    EXPLORED_PATHS dictionary to see if that checkpointing data is obsolete on the
+    basis of more general checkpointing data that always exists. So a path
+    [p1, p2, p3, p4, p5, ...] is pruned -- no longer stored -- if the higher-order
+    path [p1, p2, p3, p4] is also checkpointed. That is, it cleans up the more
+    specific checkpointing that's no longer necessary because it got us to the
+    current more-advanced state.
+    """
+    # return          # For now.
+
+    global explored_paths
+
+    pruned_dict = {k:v for k, v in explored_paths.items() if not is_redundant_strand(k)}
+    if pruned_dict != explored_paths:
+        print("  (Pruned redundant data from the global progress store!)")
+        explored_paths = pruned_dict
 
 
 def save_progress(current_path: list) -> None:
@@ -144,7 +211,8 @@ def save_progress(current_path: list) -> None:
     global last_save_time
 
     print('    (fully explored path ' + ' -> '.join(current_path), end=' -> ... ')
-    explored_paths[path_to_key(current_path)] = {
+    clean_progress_data()
+    explored_paths[str(current_path)] = {
         'success': successful_paths,
         'dead ends': dead_end_paths,
         'time': time_so_far()
@@ -157,7 +225,7 @@ def save_progress(current_path: list) -> None:
 
 
 def print_solution(solution: str) -> None:
-    """Pretty-print the solution we've found to the maze."""
+    """Pretty-print the solution  to the maze that we've found."""
     chosen_width = max(shutil.get_terminal_size()[0], 40)
     for line_num, line in enumerate(textwrap.wrap(solution, width=chosen_width-6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
         print("  " if not line_num else "    ", end="")     # Indent all lines after first.
@@ -194,7 +262,7 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
 
     # If we've tracked that we've explored this strand, or an ancestral strand including this one, in a previous run, just skip this branch.
     for i in range(minimum_trackable_length, len(path_so_far) + 1):
-        if path_to_key(path_so_far[:i]) in explored_paths:
+        if str(path_so_far[:i]) in explored_paths:
             return
 
     # Detect early: are we going to force a save at this level? Either because we caught -USR2 or because it's been a long time?
@@ -224,7 +292,8 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
         if dead_end_paths % 1000000 == 0:
             print('  (%d million dead-end paths so far, in %.2f minutes)' % (dead_end_paths / 1000000, time_so_far()/60))
 
-    if (len(path_so_far) == path_length_to_track):                      # Document we've finished this path, if it's the exact right length.
+    if (len(path_so_far) <= path_length_to_track) and (str(path_so_far) not in explored_paths):                      #
+        # Document we've finished this path, if it's at most the right length.
         save_progress(path_so_far)
     elif force_save:                                                    # Or if it's been long enough, or we caught the USR2 signal.
         save_progress(path_so_far)
@@ -259,20 +328,22 @@ def processUSR1(*args, **kwargs) -> None:
     print("\nCurrent status:")
     print("    successful paths:     ", successful_paths)
     print("    dead end paths:       ", dead_end_paths)
-    print("    total time:            %.3f minutes" % (time_so_far() / 60))
+    print("    total time:            %.3f hours" % (time_so_far() / 3600))
     print("    time since last save:  %.3f minutes" % ((datetime.datetime.now() - last_save_time).total_seconds() / 60))
-    print()
+    print("\n")
 
 
 def processUSR2(*args, **kwargs) -> None:
     """Handle the USR2 signal by saving the current status.
 
     In point of fact, we don't save the current status here. We merely set a global
-    flag that will cause the current status to be saved when the current node is
-    completely evaluated. This will usually mean that the current status is saved
-    relatively quickly, because the algorithm actually spends most of its time
-    tracing dead-ends, but there is no guarantee of this. It depends on where the
-    algorithm is when the signal is caught.
+    flag that will cause the current status to be saved when the current node,
+    whereever that happens to be when the signal is caught, is completely evaluated.
+    This involves solve_maze() recursively calling itself more times, perhaps many
+    more, though usually the current status winds up being saved relatively quickly,
+    because the algorithm actually spends most of its time tracing dead-ends. There
+    is no guarantee of this, however. It depends on where the algorithm is when the
+    signal is caught.
 
     Note that "saving progress" in this way is better than nothing, but doesn't
     guarantee that NO work will have to be re-performed on the next run.
@@ -287,6 +358,14 @@ def set_up() -> None:
     load_previous_progress()
     signal.signal(signal.SIGUSR1, processUSR1)
     signal.signal(signal.SIGUSR2, processUSR2)
+
+
+force_test = False               # For jumping into things with an IDE debugger.
+if force_test:
+    # We're walking through clean_progress_data() here.
+    set_up()
+    clean_progress_data()
+    sys.exit(0)
 
 
 if __name__ == "__main__":
