@@ -153,12 +153,7 @@ def is_redundant_strand(which_path: str) -> bool:
     """
     global explored_paths
 
-    # if """'GM', 'SN', 'MR', 'EH', 'MA', 'DZ', 'ML', 'NE', 'LY'""" in which_path:
-    #     print('breakpoint here!')
-
     for key in explored_paths:
-        # if """'GM', 'SN', 'MR', 'EH', 'MA', 'DZ', 'ML', 'NE', 'LY'""" in which_path:
-        #     print('breakpoint here!')
         if (which_path.startswith(key.rstrip(']'))) and (which_path != key):
             return True
     return False
@@ -191,13 +186,11 @@ def clean_progress_data() -> None:
     specific checkpointing that's no longer necessary because it got us to the
     current more-advanced state.
     """
-    # return          # For now.
-
     global explored_paths
 
     pruned_dict = {k:v for k, v in explored_paths.items() if not is_redundant_strand(k)}
     if pruned_dict != explored_paths:
-        print("  (Pruned redundant data from the global progress store!)")
+        print("  [Pruned redundant data from the global progress store!] ", end='')
         explored_paths = pruned_dict
 
 
@@ -211,12 +204,13 @@ def save_progress(current_path: list) -> None:
     global last_save_time
 
     print('    (fully explored path ' + ' -> '.join(current_path), end=' -> ... ')
-    clean_progress_data()
     explored_paths[str(current_path)] = {
         'success': successful_paths,
         'dead ends': dead_end_paths,
         'time': time_so_far()
         }
+
+    clean_progress_data()
     with open(explored_paths_file, mode='w') as json_file:
         json.dump(explored_paths, json_file, indent=4)
     print('  --updated progress data!)\n')
