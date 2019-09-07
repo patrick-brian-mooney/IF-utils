@@ -184,8 +184,20 @@ class TerpConnection(object):
         self._pass_command_in(command)
         return self._get_output()
 
-    def _process_command(self, command: str):
-        pass        # FIXME
+    def _process_command(self, command: str) -> dict:
+        """Takes this 'terp, runs COMMAND through it, and looks at the output. Infers as
+        much as it can from the output text and returns a dictionary object that has
+        fields with defined names that represents the data in a structured manner.
+
+        Defined field names:
+          'failed'      If the function detects that the mission failed, this is True.
+          'room'        If the function detects that the 'terp is signaling that the
+                        player is in a new room, this is the name of that room.
+          'inventory'   A list: the player's inventory.
+          'checkpoint'  A full path to a save-state file.
+        """
+        command_lines = command.split('\n')
+
 
 
 def processUSR1(*args, **kwargs) -> None:
@@ -254,6 +266,12 @@ def set_up() -> None:
     debug_print("  directory structure validated!")
 
     terp_proc = TerpConnection()
+
+
+def execute_command(command:str) -> TerpContext:
+    """Convenience function: execute the command COMMAND and return the new interpreter
+    context as a TerpContext object.
+    """
 
 
 def play_game() -> None:
