@@ -6,16 +6,16 @@ accessible to anyone, not just people running DOS. It also contains a few
 additional enhancements.
 
 Usage:
-    
+
     ./ap2zc.py INPUT_FILE
-    
+
 Note that ap2zc only understands Apple II disk images in "raw 256-byte sector"
 format. (The file length should always be 143360 bytes.) It assumes Infocom's
 standard interleaving methodology.
 
 The ap2zc program is part of a group of interactive fiction-related utilities
 by Patrick Mooney. It is copyright 2018. It is released under the GNU GPL,
-either version 3 or (at your option) any later version. See the file 
+either version 3 or (at your option) any later version. See the file
 LICENSE.md for details.
 
 """
@@ -26,8 +26,8 @@ import os, sys
 versionLoc  = 0x3000
 numWordsLoc = 0x301a
 
-numSects  =  31 * 16
-secTbl  = (0, 13, 11, 9, 7, 5, 3, 1, 14, 12, 10, 8, 6, 4, 2, 15)
+numSects = 31 * 16
+secTbl = (0, 13, 11, 9, 7, 5, 3, 1, 14, 12, 10, 8, 6, 4, 2, 15)
 wordsPerSect = (128, 128, 128, 64, 64) + (64, 64, 64)               # Note that the last three are purely conjectural
 
 
