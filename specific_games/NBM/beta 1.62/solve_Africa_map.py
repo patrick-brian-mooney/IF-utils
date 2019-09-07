@@ -145,18 +145,31 @@ def is_redundant_strand(which_path: str) -> bool:
     [c1, c2, c3, c4, c5] has been checkpointed, we need not checkpoint any of the
     more specific checkpoints [c1, c2, c3, c4, c5, c6, ...], because we've already
     determined that they've been explored fully by checkpointing the higher-order
-    (i.e., shorter) path as completely explored.
+    (i.e., shorter) path as completely explored. Despite this fact, the dicxtionary
+    intentionally retains all strands of length 8 or less, even if they are
+    redundant so that it has a record of higher-order time-elapsed data.
 
     If WHICH_PATH is exactly equal to a key in the global EXPLORED_PATHS, this is
     not considered a match on its own: True is returned only if the path is also
     made redundant by a higher-order (i.e., shorter path length) key also existing.
     """
     global explored_paths
+    
+    if len([i for i in which_path.split("""', '""")]) <= 8:      # Retain all strands of length 8 or less.
+        return False
 
     for key in explored_paths:
         if (which_path.startswith(key.rstrip(']'))) and (which_path != key):
             return True
     return False
+
+
+def pretty_print(solution: str) -> None:
+    """Pretty-print a line of text that might need to be wrapped."""
+    chosen_width = max(shutil.get_terminal_size()[0], 40)
+    for line_num, line in enumerate(textwrap.wrap(solution, width=chosen_width-6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
+        print("    " if (line_num > 0) else "  ", end='')     # Indent all lines after first.
+        print(line.strip())
 
 
 def clean_progress_data() -> None:
@@ -190,7 +203,7 @@ def clean_progress_data() -> None:
 
     pruned_dict = {k:v for k, v in explored_paths.items() if not is_redundant_strand(k)}
     if pruned_dict != explored_paths:
-        print("  [Pruned redundant data from the global progress store!] ", end='')
+        pretty_print("[Pruned redundant data from the global progress store!]")
         explored_paths = pruned_dict
 
 
@@ -203,7 +216,8 @@ def save_progress(current_path: list) -> None:
     global explored_paths
     global last_save_time
 
-    print('    (fully explored path ' + ' -> '.join(current_path), end=' -> ... ')
+    print('\n')    
+    pretty_print('(fully explored path ' + ' -> '.join(current_path) + ' -> ... ')
     explored_paths[str(current_path)] = {
         'success': successful_paths,
         'dead ends': dead_end_paths,
@@ -213,17 +227,10 @@ def save_progress(current_path: list) -> None:
     clean_progress_data()
     with open(explored_paths_file, mode='w') as json_file:
         json.dump(explored_paths, json_file, indent=4)
-    print('  --updated progress data!)\n')
+    pretty_print('--updated progress data!)')
+    print('\n')
 
     last_save_time = datetime.datetime.now()
-
-
-def print_solution(solution: str) -> None:
-    """Pretty-print the solution  to the maze that we've found."""
-    chosen_width = max(shutil.get_terminal_size()[0], 40)
-    for line_num, line in enumerate(textwrap.wrap(solution, width=chosen_width-6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
-        print("  " if not line_num else "    ", end="")     # Indent all lines after first.
-        print(line.strip())
 
 
 def find_path_from(starting_point:str, path_so_far:list=None) -> None:
@@ -271,7 +278,7 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     if not unvisited_states:
         successful_paths += 1
         print("Solution #%d found! ... in %.3f hours." % (successful_paths, time_so_far()/3600))
-        print_solution(' -> '.join(path_so_far))
+        pretty_print(' -> '.join(path_so_far))
         print('\n')
         with open(successful_paths_file, mode="at") as success_file:
             success_file.write('path #%d (%.3f seconds): %s \n' % (successful_paths, time_so_far(), ' -> '.join(path_so_far)), '\n\n')
