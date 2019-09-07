@@ -24,7 +24,9 @@ for a copy of this license.
 
 
 import argparse
-import os
+
+from pathlib import Path
+
 import pprint
 import queue
 import shlex, signal, subprocess, sys
@@ -39,12 +41,12 @@ verbosity = 0       # How chatty are we being about our progress?
 # 3         Also display each node explored: location, action taken
 
 # Program-running parameters. Probably not useful when not on my system. Override with -i  and -s, respectively.
-interpreter_location = '/home/patrick/bin/glulxe/glulxe'
-story_file_location = '/home/patrick/games/IF/by author/Ord, Toby/as half sick of shadows/[2004] All Things Devours/hacking/devours.ulx'
+interpreter_location = Path('/home/patrick/bin/glulxe/glulxe').resolve()
+story_file_location = Path('/home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/hacked ATD/devours.ulx').resolve()
 
-working_directory = os.path.join(os.path.abspath(os.path.dirname(story_file_location)), 'working')
-save_file_directory = os.path.join(working_directory, 'saves')
-successful_paths_directory = os.path.join(working_directory, 'successful_paths')
+working_directory = story_file_location.with_name('working')
+save_file_directory = working_directory.joinpath('saves')
+successful_paths_directory = working_directory.joinpath('successful_paths')
 
 
 # Global variables to hold the external process and related information.
@@ -140,7 +142,8 @@ class TerpConnection(object):
         reference to that wrapper. Provides functions for issuing a command to the
         'terp and reading the text that is returned.
         """
-        self._proc = subprocess.Popen([interpreter_location, story_file_location], stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=False)
+        self._proc = subprocess.Popen([str(interpreter_location), str(story_file_location)],
+                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=False)
         self._nonblocking_reader = NonBlockingStreamReader(self._proc.stdout)
         debug_print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + self._get_output() + "\n\n", 2)
 
@@ -248,30 +251,31 @@ def set_up() -> None:
     # Set up the necessary directories. Not particularly robust against malicious interference and race conditions,
     # but this script is just for me, anyway. Assumes a cooperative, reasonably competent user.
     debug_print("  about to check directory structure ...", 2)
-    if os.path.exists(working_directory):
-        assert os.path.isdir(working_directory), "ERROR: %s exists, but is not a directory!" % working_directory
+    if working_directory.exists():
+        assert working_directory.is_dir(), "ERROR: %s exists, but is not a directory!" % working_directory
     else:
-        os.mkdir(working_directory)
+        working_directory.mkdir()
         debug_print("    successfully created working directory %s" % shlex.quote(working_directory))
-    if os.path.exists(save_file_directory):
-        assert os.path.isdir(save_file_directory), "ERROR: %s exists, but is not a directory!" % save_file_directory
+    if save_file_directory.exists():
+        assert save_file_directory.is_dir(), "ERROR: %s exists, but is not a directory!" % save_file_directory
     else:
-        os.mkdir(save_file_directory)
+        save_file_directory.mkdir()
         debug_print("    successfully created save file directory %s" % shlex.quote(save_file_directory))
-    if os.path.exists(successful_paths_directory):
-        assert os.path.isdir(successful_paths_directory), "ERROR: %s exists, but is not a directory!" % successful_paths_directory
+    if successful_paths_directory.exists():
+        assert successful_paths_directory.is_dir(), "ERROR: %s exists, but is not a directory!" % successful_paths_directory
     else:
-        os.mkdir(successful_paths_directory)
-        debug_print("    successfully created successful paths directory %s" % shlex.quote(successful_paths_directory))
+        successful_paths_directory.mkdir()
+        debug_print("    successfully created successful paths directory %s" % successful_paths_directory)
     debug_print("  directory structure validated!")
 
     terp_proc = TerpConnection()
 
 
-def execute_command(command:str) -> TerpContext:
+def execute_command(command:str) -> dict:
     """Convenience function: execute the command COMMAND and return the new interpreter
     context as a TerpContext object.
     """
+    pass        # FIXME!
 
 
 def play_game() -> None:
