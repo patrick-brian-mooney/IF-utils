@@ -154,7 +154,7 @@ def is_redundant_strand(which_path: str) -> bool:
     made redundant by a higher-order (i.e., shorter path length) key also existing.
     """
     global explored_paths
-    
+
     if len([i for i in which_path.split("""', '""")]) <= 8:      # Retain all strands of length 8 or less.
         return False
 
@@ -216,7 +216,7 @@ def save_progress(current_path: list) -> None:
     global explored_paths
     global last_save_time
 
-    print('\n')    
+    print('\n')
     pretty_print('(fully explored path ' + ' -> '.join(current_path) + ' -> ... ')
     explored_paths[str(current_path)] = {
         'success': successful_paths,
@@ -291,7 +291,7 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     else:
         dead_end_paths += 1
         if dead_end_paths % 1000000 == 0:
-            print('  (%d million dead-end paths so far, in %.2f minutes)' % (dead_end_paths / 1000000, time_so_far()/60))
+            print('  (%d million dead-end paths so far, in %.2f hours)' % (dead_end_paths / 1000000, time_so_far()/3600))
 
     if (len(path_so_far) <= path_length_to_track) and (str(path_so_far) not in explored_paths):                      #
         # Document we've finished this path, if it's at most the right length.
@@ -330,6 +330,7 @@ def processUSR1(*args, **kwargs) -> None:
     print("    successful paths:     ", successful_paths)
     print("    dead end paths:       ", dead_end_paths)
     print("    total time:            %.3f hours" % (time_so_far() / 3600))
+    print("                           %.3f days" % (time_so_far() / (24 * 3600)))
     print("    time since last save:  %.3f minutes" % ((datetime.datetime.now() - last_save_time).total_seconds() / 60))
     print("\n")
 
