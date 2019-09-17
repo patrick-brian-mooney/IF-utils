@@ -193,7 +193,7 @@ def must_do_something_before_exiting_prototype(*pargs) -> bool:
     OUT OF PROTOTYPE cycle. This filter should be attached to EXITing verbs; it
     disallows them if the previous (effective) command is something that means GET
     IN PROTOTYPE, provided that the PC is in the Lab or the Prototype.
-    """     # FIXME: we should check to make sure that "do something successfully" means "something other than WAIT"
+    """
     if 'prototype' not in terp_proc._context_history['room'].strip().lower():
         return True
     steps = list(reversed([h['command'] for h in terp_proc._context_history.maps if 'command' in h]))
@@ -263,7 +263,7 @@ class NonBlockingStreamReader(object):
         self._t.daemon = True
         self._t.start()             # start collecting lines from the stream
 
-    def readline(self, timeout=None) -> bytes:
+    def readline(self, timeout=None) -> str:
         """Returns the next line in the buffer, if there are any; otherwise, returns None.
         Waits up to TIMEOUT seconds for more data before returning None. If TIMEOUT is
         None, blocks until there IS more data in the buffer. Does not do any decoding.
@@ -293,12 +293,9 @@ class NonBlockingStreamReader(object):
         return ret
 
     def read_text(self) -> str:
-        """Returns all the text waiting in the buffer. Decodes it using the Python default
-        encoding, which is basically always what we want in this scenario. Note that
-        this is the only method on this object that performs decoding of text in the
-        buffer: everything else deals with bytes-type streams.
+        """Returns all the text waiting in the buffer.
         """
-        ret = '\n'.join([l.decode().rstrip() for l in self.readlines()]).strip().lstrip('>')
+        ret = '\n'.join([l.rstrip() for l in self.readlines()]).strip().lstrip('>')
         return ret
 
 
@@ -315,7 +312,7 @@ class TerpConnection(object):
         to that wrapper. Initialized the command-history data structure.
         """
         parameters = [str(interpreter_location)] + interpreter_flags + [str(story_file_location)]
-        self._proc = subprocess.Popen(parameters, shell=False,
+        self._proc = subprocess.Popen(parameters, shell=False, universal_newlines=True, bufsize=1,
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self._nonblocking_reader = NonBlockingStreamReader(self._proc.stdout)
         opening_context = self.evaluate_context(self._get_output(), command='[game start]')
@@ -350,22 +347,28 @@ class TerpConnection(object):
         self._proc.terminate()
         self._proc, self._nonblocking_reader = None, None
 
-    def _get_output(self) -> str:
+    def _get_output(self, retry:bool=True) -> str:
         """Convenience function to return whatever output text is currently queued in the
         nonblocking wrapper around the 'terp's STDOUT stream. If there is no text at
-        all, sleep and retry several times until there is, or until we give up.    #FIXME
+        all, then, if RETRY is True, sleep and retry several times until there is, or
+        until we've been patient enough and give up. If there is no text at all and
+        RETRY is False, just return an empty string.
         """
         debug_print("(read STDOUT from buffer)", 4)
         ret = self._nonblocking_reader.read_text()
-#        if not ret:              # Sometimes we need to wait on the buffer a few times.
-#            for i in range(20):  # FIXME: should we just be upping the timeout on the read? --probably not
-#                ret = self._nonblocking_reader.read_text()
-#                if ret:
-#                    break
-#                else:
-#                    time.sleep(0.5)
-#            if not ret:
-#                debug_print("ERROR: unable to get any data from the 'terp!", 0)
+        if (not ret) and retry:              # Sometimes we need to wait on the buffer a few times.
+            sleeptime = 0.1
+            for i in range(20):  # FIXME: should we just be upping the timeout on the read? -- probably not
+                ret = self._nonblocking_reader.read_text()
+                if ret:
+                    break
+                else:
+                    time.sleep(sleeptime)
+                    sleeptime *= 2              # Wait longer and longer for data from the 'terp.
+                    if i > 5:
+                        pass                    # Breakpoint!
+            if not ret:
+                debug_print("ERROR: unable to get any data from the 'terp!", 0)
         return ret
 
     def _add_context_to_history(self, context: dict) -> None:
@@ -437,20 +440,25 @@ class TerpConnection(object):
         the 'terp.
         """
         debug_print("(passing command %s to 'terp" % command.upper(), 4)
-        command = (command.strip() + '\n').encode()
+        command = (command.strip() + '\n')
         self._proc.stdin.write(command)
         self._proc.stdin.flush()
 
-    def _process_command_and_return_output(self, command:str) -> str:
+    def _process_command_and_return_output(self, command:str, be_patient:bool=True) -> str:
         """A convenience wrapper: passes a command into the terp, and returns whatever text
         the 'terp barfs back up. Does minimal processing on the command passed in -- it
-        only encodes it from str to bytes using Python's default encoding -- and no
-        processing on the output text, except for decoding it from bytes to str using
-        Python's default encoding. In particular, it performs no EVALUATION of the
+        adds a newline -- and no processing on the output text. (All text is processed
+        using the system default encoding because we're in text mode, or "universal
+        newlines" mode, if you prefer.) In particular, it performs no EVALUATION of the
         text's output. leaving that to other code.
+
+        If BE_PATIENT is True, pass True to _get_output()'s RETRY parameter, so that it
+        will be more patient while waiting for output. If not--and there are some
+        annoying situations where the 'terp doesn't cough up any response--then just
+        don't bother waiting if we can't get anything on the first attempt.
         """
         self._pass_command_in(command)
-        return self._get_output()
+        return self._get_output(retry=be_patient)
 
     def _save_terp_state(self) -> Path:
         """Saves the interpreter state. It does this solely by causing the 'terp to
@@ -465,7 +473,7 @@ class TerpConnection(object):
             p = save_file_directory / str(uuid.uuid4())
             found_name = not p.exists()                         # Yes, vulnerable to race conditions, Vanishingly so, though.
         debug_print("(saving terp state to %s)" % p, 4)
-        _ = self._process_command_and_return_output('save')
+        _ = self._process_command_and_return_output('save', be_patient=False)   # We can't expect to get a response here: the 'terp doesn't necessarily end it's response with \n, because it's waiting for a response on the same line, so we won't get the prompt text until after we've passed the prompt answer in.
         output = self._process_command_and_return_output(os.path.relpath(p, base_directory))
         if ("save failed" in output.lower()) or (not p.exists()):
             time.sleep(1)                      # Here's a nice spot for a breakpoint.
@@ -476,7 +484,7 @@ class TerpConnection(object):
         SAVE_FILE_PATH. Returns True if the restoring action was successful, or False if
         it failed.
         """
-        _ = self._process_command_and_return_output('restore')
+        _ = self._process_command_and_return_output('restore', be_patient=False)
         output = self._process_command_and_return_output(os.path.relpath(save_file_path))
         ret = not ('failed' in output.lower())
         if ret:
@@ -523,7 +531,7 @@ class TerpConnection(object):
             p = working_directory / ('transcript_' + datetime.datetime.now().isoformat().replace(':', '_'))
             found_name = not p.exists()  # Yes, vulnerable to race conditions, Vanishingly so, though.
         debug_print("(saving terp state to %s)" % p, 4)
-        _ = self._process_command_and_return_output('script')
+        _ = self._process_command_and_return_output('script', be_patient=False)
         _ = self._process_command_and_return_output(os.path.relpath(p, base_directory))
 
     def _get_inventory(self) -> list:
