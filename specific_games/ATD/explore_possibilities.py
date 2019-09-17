@@ -32,10 +32,10 @@ import os
 
 from pathlib import Path
 
-import pickle, pprint
+import pprint
 import queue
 import random
-import shlex, signal, subprocess, sys
+import shlex, signal, string, subprocess, sys
 import tarfile, threading, time
 import uuid
 
@@ -94,7 +94,11 @@ def debug_print(what, min_level=1) -> None:
 
 
 def get_total_time() -> float:
-    """Returns the total number of seconds spent processing."""
+    """Returns the total number of seconds since the processing run started. Note that
+    runs that start by restoring progress data from a previous run also fake the
+    SCRIPT_RUN_START time so that this function returns the proper total wall time
+    spent running the script to gather the current crop of data.
+    """
     return (datetime.datetime.now() - script_run_start).total_seconds()
 
 
@@ -114,18 +118,20 @@ def is_redundant_strand(which_path: str) -> bool:
 
 
 # These next are routines that determine whether a command is available as a guess at a particular point in time.
-# Each function takes zero parameters (it must evaluate the global 'terp state) and returns a boolean value: True
-# if the function is available, False otherwise. Most commands have no real need to be limited and so are mapped to
-# always_true(). Functions starting with SET TIMER TO [number] have an additional restriction placed on them to
-# prevent the possibility space from exploding: only one SET TIMER TO command is allowed in a game.
-def always_true() -> bool:
+# Each function is passed one parameter, the current command being attempted (the function must look at the
+# global 'terp state for anything else) and returns a boolean value: True if the command is available right now, or
+# False otherwise. Many commands have no real need to be limited and so are mapped to always_true().
+
+# Functions that have no need to look at the current command to know if their function is available can just consume
+# it with *pargs syntax.
+def always_true(*pargs) -> bool:
     """Utility function for commands that are always available. When we query whether
     they're available, just returns True.
     """
     return True
 
 
-def only_one_timer_command() -> bool:
+def only_one_timer_command(*pargs) -> bool:
     """Utility function for SET TIMER TO [number] commands. It returns True iff
     no SET TIMER TO [number] command has yet been entered; otherwise, it returns
     False.
@@ -144,11 +150,85 @@ def only_one_timer_command() -> bool:
     return (not "set timer to" in terp_proc._get_terse_walkthrough().lower())
 
 
-# Now, fill out the command-selection parameters.
+def only_in_prototype(*pargs) -> bool:
+    """This function is a filter for for actions that are only productive when the
+    Protagonist is inside the time machine prototype. There are a huge number of
+    such actions, most of which are SET PANEL TO [number]: these are only possible
+    inside the Prototype because the panel is not portable.
+    """
+    return 'prototype' in terp_proc._context_history['room']
+
+
+def not_twice_in_a_row(c: str) -> bool:
+    """This function prevents the same command from being issued twice consecutively.
+    This is useful for many commands, because it eliminates--well, REDUCES-- the
+    "when a command succeeds once, it will generally succeed twice; but the second
+    time is essentially a synonym for WAIT" problem.
+
+    Note that "same command" in the paragraph above means "the EXACT SAME command',
+    character for character, not "a similar command."
+    """
+    return (c.strip().strip(string.punctuation).strip().lower() == terp_proc._context_history['command'].strip().strip(string.punctuation).strip().lower())
+
+
+def set_panel_once_before_pushing_button(c: str) -> bool:
+    """This filter is for SET PANEL TO [number], a set of commands that have some
+    comparatively complex requirements: 1. Only in the prototype. 2. Once a SET
+    PANEL command has been executed, no others are allowed until after a successful
+    PUSH SILVER BUTTON appears in the transcript (i.e., is not a mistake).
+
+    Otherwise, allowing repeated SET PANEL TO commands is equivalent to WAIT.
+    """
+    if only_in_prototype(c):
+        walkthrough = terp_proc._get_terse_walkthrough().lower().strip()
+        if 'set panel' not in walkthrough:
+            return True
+        elif 'push silver' in walkthrough:
+            return (walkthrough.rindex('push silver') > walkthrough.rindex('set panel'))
+    return False
+
+
+def must_do_something_before_exiting_prototype(*pargs) -> bool:
+    """Another rule to prevent an effective synonym for WAIT: a repeated GET IN/GET
+    OUT OF PROTOTYPE cycle. This filter should be attached to EXITing verbs; it
+    disallows them if the previous (effective) command is something that means GET
+    IN PROTOTYPE, provided that the PC is in the Lab or the Prototype.
+    """     # FIXME: we should check to make sure that "do something successfully" means "something other than WAIT"
+    if 'prototype' not in terp_proc._context_history['room'].strip().lower():
+        return True
+    steps = list(reversed([h['command'] for h in terp_proc._context_history.maps if 'command' in h]))
+    index = 0
+    for i, s in enumerate(steps):               # Find the last occurrence
+        if s.strip().lower() in ['enter prototype', 'go in']:
+            index = i
+    if index == len(steps) - 1:                 # If the last thing we did was get in, prohibit exiting.
+        return False
+    if index < 1:                               # If there's never been an entering command, allow the exiting command anyway, though it will almost certainly be interpreted as a mistake.
+        return True
+    steps = steps[1+index:]                     # Drop everything up to the last entering command.
+    while steps:                                # Now drop WAITs until we hit something else.
+        if steps[0].lower().strip() == 'wait':
+            steps.pop(0)
+        else:
+            break                               # If there's anything left after the WAITs after the entering command,
+    return bool([i for i in steps if i])        # ... return True to allow the exit command.
+
+# Now that we've defined the filter functions, fill out the command-selection parameters.
 with open(commands_file) as cmd_file:
     for l in cmd_file.readlines():
         l = l.strip().lower()
-        all_commands[l] = only_one_timer_command if ('set timer' in l) else always_true
+        if 'set timer' in l:
+            all_commands[l] = only_one_timer_command
+        elif 'set panel' in l:
+            all_commands[l] = set_panel_once_before_pushing_button
+        elif l in ['exit', 'go out']:
+            all_commands[l] = must_do_something_before_exiting_prototype
+        elif l.startswith('turn off') or l.startswith('turn on') or l.startswith('unlock') or l.startswith('close'):
+            all_commands[l] = not_twice_in_a_row
+        elif l.startswith('push') or l.startswith('turn on') or l.startswith('examine') or l.startswith('get') or l.startswith('open'):
+            all_commands[l] = not_twice_in_a_row
+        else:
+            all_commands[l] = always_true
 
 
 # And a utility class used to wrap an output stream for the TerpConnection, below.
@@ -186,7 +266,7 @@ class NonBlockingStreamReader(object):
     def readline(self, timeout=None) -> bytes:
         """Returns the next line in the buffer, if there are any; otherwise, returns None.
         Waits up to TIMEOUT seconds for more data before returning None. If TIMEOUT is
-        None, blocks until there IS more data in the buffer.
+        None, blocks until there IS more data in the buffer. Does not do any decoding.
         """
         try:
             return self._q.get(block=timeout is not None, timeout=timeout)
@@ -235,7 +315,8 @@ class TerpConnection(object):
         to that wrapper. Initialized the command-history data structure.
         """
         parameters = [str(interpreter_location)] + interpreter_flags + [str(story_file_location)]
-        self._proc = subprocess.Popen(parameters, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        self._proc = subprocess.Popen(parameters, shell=False,
+                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self._nonblocking_reader = NonBlockingStreamReader(self._proc.stdout)
         opening_context = self.evaluate_context(self._get_output(), command='[game start]')
         self._context_history = collections.ChainMap(opening_context)
@@ -243,20 +324,20 @@ class TerpConnection(object):
             self.SCRIPT()
 
     def __str__(self):
-        ret =  "< TerpConnection object\n"
+        ret =  "< TerpConnection object; "
         try:
-            ret += "            room: " + self._context_history['room'] + '\n'
+            ret += " room: " + self._context_history['room'] + ';'
         except:
-            ret += "            room: [unknown]\n"
+            ret += " room: [unknown]\n"
         try:
-            ret += "       inventory: " + str(self._context_history['inventory']) + '\n'
+            ret += " inventory: " + str(self._context_history['inventory']) + ';'
         except:
-            ret += "       inventory: [unknown]\n"
+            ret += " inventory: [unknown];"
         try:
-            ret += "    last command: " + self._context_history['command'] + '\n'
+            ret += " last command: " + self._context_history['command']
         except:
-            ret += "    last command: [unknown]\n"
-        ret += ">"
+            ret += "    last command: [unknown]"
+        ret += " >"
         return ret
 
     def _clean_up(self):
@@ -271,10 +352,21 @@ class TerpConnection(object):
 
     def _get_output(self) -> str:
         """Convenience function to return whatever output text is currently queued in the
-        nonblocking wrapper around the 'terp's STDOUT stream.
+        nonblocking wrapper around the 'terp's STDOUT stream. If there is no text at
+        all, sleep and retry several times until there is, or until we give up.    #FIXME
         """
         debug_print("(read STDOUT from buffer)", 4)
-        return self._nonblocking_reader.read_text()
+        ret = self._nonblocking_reader.read_text()
+#        if not ret:              # Sometimes we need to wait on the buffer a few times.
+#            for i in range(20):  # FIXME: should we just be upping the timeout on the read? --probably not
+#                ret = self._nonblocking_reader.read_text()
+#                if ret:
+#                    break
+#                else:
+#                    time.sleep(0.5)
+#            if not ret:
+#                debug_print("ERROR: unable to get any data from the 'terp!", 0)
+        return ret
 
     def _add_context_to_history(self, context: dict) -> None:
         """Adds the context to the front of the context-history chain, taking care only
@@ -325,8 +417,8 @@ class TerpConnection(object):
             progress_data = pruned_dict
 
     def _create_progress_checkpoint(self) -> None:
-        """Update the dictionary that keeps track of which possible branches we've already
-        tried. Write that updated dictionary to disk.
+        """Update the dictionary that keeps track of which possible branches of the problem
+        space we've already tried. Write that updated dictionary to disk.
         """
         global progress_data
         progress_data[self._get_terse_walkthrough()] = {
@@ -374,7 +466,9 @@ class TerpConnection(object):
             found_name = not p.exists()                         # Yes, vulnerable to race conditions, Vanishingly so, though.
         debug_print("(saving terp state to %s)" % p, 4)
         _ = self._process_command_and_return_output('save')
-        _ = self._process_command_and_return_output(os.path.relpath(p, base_directory))
+        output = self._process_command_and_return_output(os.path.relpath(p, base_directory))
+        if ("save failed" in output.lower()) or (not p.exists()):
+            time.sleep(1)                      # Here's a nice spot for a breakpoint.
         return p
 
     def _restore_terp_to_save_file(self, save_file_path: Path) -> None:
@@ -404,10 +498,10 @@ class TerpConnection(object):
         txt = self._process_command_and_return_output('undo')
         if """you can't "undo" what hasn't been done""".lower() in txt.lower():
             return True         # "Nothing was done" is as good as successfully undoing. =)
-        output = [l.strip() for l in txt.strip().split('\n') if l.strip()]
-        if not output:
+        if not txt:
             time.sleep(1)               # Trouble. What's up? Here's a place for a debugging checkpoint.
-        if "undone" in output[-1].lower():
+            return False
+        if "undone.]" in txt.lower():
             return True
         else:
             time.sleep(1)               # Trouble. What's up?
@@ -417,9 +511,10 @@ class TerpConnection(object):
         and undo the command.
         """
         print(self._process_command_and_return_output('look'))
-        self.UNDO()
+        if not self.UNDO():
+            debug_print('WARNING: unable to undo LOOK command!', 2)
 
-    def SCRIPT(self):
+    def SCRIPT(self) -> None:
         """Determines an appropriate transcript name, and issues a SCRIPT command to the
         'terp to cause a transcript to be kept at that location.
         """
@@ -437,7 +532,8 @@ class TerpConnection(object):
         """
         debug_print("(getting PC inventory)", 4)
         inventory_text = self._process_command_and_return_output('inventory')
-        self.UNDO()
+        if not self.UNDO():
+            debug_print("Warning! Unable to undo INVENTORY command.", 2)
         ret = list([l.strip() for l in inventory_text.split('\n') if (l.strip() and not l.strip().strip('>').lower().startswith("you're carrying:"))])
         try:
             ret = ret[1 + list([l.lower().strip() for l in ret]).index('you are carrying:'):]
@@ -446,19 +542,19 @@ class TerpConnection(object):
         return ret
 
     def INVENTORY(self) -> None:
-        """Convenience function: print the current inventory to the console, then undo the
+        """Convenience wrapper: print the current inventory to the console, then undo the
         in-game action.
         """
         print(self._get_inventory())
 
     def evaluate_context(self, output: str, command:str) -> dict:
         """Looks at the output retrieved after running a command and infers as much as it
-        can from the output text and returns a dictionary object that has fields with
+        can from the output text, then returns a dictionary object that has fields with
         defined names that represents the data in a structured manner.
 
         Defined field names:
-          'room'        If the function detects that the 'terp is signaling that the
-                        player is in a new room, this is the name of that room.
+          'room'        If the function detects that the 'terp is signaling which room
+                        the player is in, this is the name of that room.
           'inventory'   A list: the player's inventory.
           'time'        The ("objective," external) clock time at this point in the
                         story.
@@ -477,9 +573,11 @@ class TerpConnection(object):
                         is set to True.
         """
         debug_print("(evaluating command results)", 4)
-        output_lines = output.split('\n')
-        ret = {'failed': False, 'success': False, 'mistake': False,
-               'command': command, 'time': None, 'output': output}
+        output_lines = [l.strip() for l in output.split('\n')]
+        output_lower = output.lower().strip()
+        ret = {'time': None, 'command': command,
+               'failed': False, 'success': False, 'mistake': False,
+               'output': output}
         try:
             ret['turns'] = 1 + len(self._context_history.maps)
         except AttributeError:      # The very first time we run, _context_history doesn't exist yet!
@@ -488,15 +586,16 @@ class TerpConnection(object):
         for t in [l[l.rfind("4:"):].strip() for l in output_lines if '4:' in l]:        # Time is always 4:xx:yy AM.
             ret['time'] = t
         # Next, check for complete failure. Then, check for game-winning success.
-        aster_lines = [l.strip() for l in output_lines if l.strip().startswith('***')]
-        for l in aster_lines:
-            if l.strip().lower() in failure_messages:
+        for m in failure_messages:
+            if m in output_lower:
                 ret['failed'] = True
                 return ret
-            elif l.strip().lower() in success_messages:
+        for m in success_messages:
+            if m in output_lower:
                 ret['success'] = True
                 return ret
-            elif l.strip() == "*******":
+        for l in [line for line in output_lines if line.startswith('**')]:
+            if l == "*******":
                 pass        # This is just a textual separator that turns up occasionally. Ignore it.
             else:
                 print('Game-ending asterisk line encountered that I cannot understand!')
@@ -519,8 +618,9 @@ class TerpConnection(object):
         for l in [l.strip().lower() for l in output_lines]:
             if l in rooms:
                 ret['room'] = l
-        ret['checkpoint'] = self._save_terp_state()
-        ret['inventory'] = self._get_inventory()
+        if not ret['success'] and not ret['failed'] and not ret['mistake']:        # Don't bother trying these if the game's over or we made no change.
+            ret['checkpoint'] = self._save_terp_state()
+            ret['inventory'] = self._get_inventory()
         return ret
 
 
@@ -547,8 +647,7 @@ def document_disambiguation(context_frame: dict) -> None:
     while not found:
         p = base_directory / ('disambiguation_' + str(uuid.uuid4()) + '.json')
         found = not p.exists()
-    with open(p, 'wt') as json_file:
-        json.dump(context_frame, json_file, indent=2, default=str, sort_keys=True)
+    p.write_text(json.dumps(context_frame, indent=2, default=str, sort_keys=True))
 
 
 def record_solution() -> None:
@@ -574,7 +673,8 @@ def record_solution() -> None:
 def make_moves(depth=0) -> None:
     """Try a move. See if it loses. If not, see if it was useless. If either is true,
     just undo it and move on to the next command: there's no point in continuing if
-    either is the case.
+    either is the case. ("Useless" here means that the 'terp signaled back to us
+    that it was a mistake in some sense.)
 
     Otherwise, check to see if we won. If we did, document the fact and move along.
 
@@ -606,7 +706,7 @@ def make_moves(depth=0) -> None:
         return
 
     these_commands = list(all_commands.keys())  # Putting them in random order doesn't make the process go faster ...
-    random.shuffle(these_commands)              # But it does make it less excruciating to watch.
+    #random.shuffle(these_commands)              # But it does make it less excruciating to watch.
 
     # Make sure we've got a save file to restore from after we try commands.
     if 'checkpoint' not in terp_proc._context_history:
@@ -614,8 +714,9 @@ def make_moves(depth=0) -> None:
     # Keep a copy of our starting state. Dict() to collapse the ChaimMap to a flat state.
     # This data includes a reference to a save state that we'll restore to after every single move.
     starting_frame = dict(terp_proc._context_history)
-    for c in these_commands:
-        if all_commands[c]():   # check to see if we're allowed to run this command right now. If so ...
+
+    for c_num, c in enumerate(these_commands):
+        if all_commands[c](c):  # check to see if we're allowed to try this command right now. If so ...
             try:                # execute_command() produces a checkpoint that will be used by _unroll(), below.
                 room_name = terp_proc._context_history['room'] if ('room' in terp_proc._context_history) else ['unknown']
                 new_context = execute_command(c)
@@ -631,6 +732,7 @@ def make_moves(depth=0) -> None:
                     print('Command %s won! Recording ...' % c)
                     record_solution()
                     successes += 1
+                    time.sleep(5)               # Let THAT sit there on the debugging screen for a few seconds.
                 elif new_context['mistake']:
                     debug_print('command %s was detected to be a mistake!' % c, 4)
                     dead_ends += 1
@@ -639,13 +741,13 @@ def make_moves(depth=0) -> None:
                     dead_ends += 1
                 else:               # If we didn't win, lose, or get told we made a mistake, make another move.
                     make_moves(depth=1+depth)
-#            except Exception as errrr:
-#                debug_print("Got %s while trying to execute command %s!" % (errrr, c))
-#                time.sleep(3)
+            except Exception as errrr:
+                debug_print("Got %s while trying to execute command %s!" % (errrr, c))
+                time.sleep(3)
             finally:
                 total = dead_ends + successes
                 if (total % 1000 == 0) or ((verbosity >= 2) and (total % 100 == 0)) or ((verbosity >= 4) and (total % 20 == 0)):
-                    print("Explored %d complete paths so far" % total)
+                    print("Explored %d complete paths so far, in %.2f minutes" % (total, get_total_time()/60))
                 terp_proc._restore_terp_to_save_file(starting_frame['checkpoint'])
                 terp_proc._drop_history_frame()
     if len(terp_proc._context_history.maps) % 4 == 0:
@@ -735,12 +837,11 @@ def set_up() -> None:
             dead_ends = max([t['dead ends'] for t in progress_data.values()])
             successes = max([t['successes'] for t in progress_data.values()])
         print("Successfully loaded previous progress data!")
-    except Exception as errr:                   # Everything was initialized up top anyway.
+    except Exception as errr:                   # Everything was initialized up top, anyway.
         print("Can't restore progress data: starting from scratch!")
         debug_print('(emptying saved-games directory ...)', 2)  # Careful not to erase the single checkpoint file that's already been created by the context evaluation of the game's initial output.
-        for sav in [f for f in save_file_directory.glob('*') if not f in [frame['checkpoint'] for frame in
-                                                                          terp_proc._context_history.maps if
-                                                                          'checkpoint' in frame]]:
+        files_to_erase = [f for f in save_file_directory.glob('*') if not f in [frame['checkpoint'] for frame in terp_proc._context_history.maps if 'checkpoint' in frame]]
+        for sav in files_to_erase:
             debug_print("(deleting %s ...)" % sav, 3)
             sav.unlink()
 

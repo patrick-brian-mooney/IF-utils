@@ -1,21 +1,3 @@
-go down
-go east
-go in
-go north
-go northeast
-go northwest
-go out
-go south
-go southeast
-go southwest
-go up
-go west
-turn off flashlight
-turn off lights
-turn on flashlight
-turn on lights
-unlock equipment door
-wait
 close deutsch lab
 close equipment door
 drop battery
@@ -33,20 +15,57 @@ get cable and battery
 get crowbar
 get flashlight and brass key
 get notes
+go down
+go east
+go in
+go north
+go northeast
+go northwest
+go out
+go south
+go southeast
+go southwest
+go up
+go west
 lock deutsch lab
 lock equipment door
 open automatic door
 open deutsch door
 push alarm
-push silver button
-push green button
 push basement
 push first
+push green button
 push second
+push silver button
 put batteries in flashlight
 put battery in flashlight
 remove battery from flashlight
+smash window
+turn off flashlight
+turn off lights
+turn on flashlight
+turn on lights
+unlock equipment door
+wait
+set panel to 5
 set panel to 10
+set panel to 15
+set panel to 20
+set panel to 25
+set panel to 30
+set panel to 35
+set panel to 40
+set panel to 45
+set panel to 50
+set panel to 55
+set panel to 60
+set panel to 65
+set panel to 70
+set panel to 75
+set panel to 80
+set panel to 85
+set panel to 90
+set panel to 95
 set panel to 100
 set panel to 105
 set panel to 110
@@ -57,7 +76,6 @@ set panel to 130
 set panel to 135
 set panel to 140
 set panel to 145
-set panel to 15
 set panel to 150
 set panel to 155
 set panel to 160
@@ -68,7 +86,6 @@ set panel to 180
 set panel to 185
 set panel to 190
 set panel to 195
-set panel to 20
 set panel to 200
 set panel to 205
 set panel to 210
@@ -79,7 +96,6 @@ set panel to 230
 set panel to 235
 set panel to 240
 set panel to 245
-set panel to 25
 set panel to 250
 set panel to 255
 set panel to 260
@@ -90,7 +106,6 @@ set panel to 280
 set panel to 285
 set panel to 290
 set panel to 295
-set panel to 30
 set panel to 300
 set panel to 305
 set panel to 310
@@ -101,7 +116,6 @@ set panel to 330
 set panel to 335
 set panel to 340
 set panel to 345
-set panel to 35
 set panel to 350
 set panel to 355
 set panel to 360
@@ -112,7 +126,6 @@ set panel to 380
 set panel to 385
 set panel to 390
 set panel to 395
-set panel to 40
 set panel to 400
 set panel to 405
 set panel to 410
@@ -123,7 +136,6 @@ set panel to 430
 set panel to 435
 set panel to 440
 set panel to 445
-set panel to 45
 set panel to 450
 set panel to 455
 set panel to 460
@@ -134,21 +146,9 @@ set panel to 480
 set panel to 485
 set panel to 490
 set panel to 495
-set panel to 5
-set panel to 50
 set panel to 500
-set panel to 55
-set panel to 60
-set panel to 65
-set panel to 70
-set panel to 75
-set panel to 80
-set panel to 85
-set panel to 90
-set panel to 95
-smash window
+set timer to 5
 set timer to 10
-set timer to 100
 set timer to 15
 set timer to 20
 set timer to 25
@@ -156,7 +156,6 @@ set timer to 30
 set timer to 35
 set timer to 40
 set timer to 45
-set timer to 5
 set timer to 50
 set timer to 55
 set timer to 60
@@ -167,3 +166,4 @@ set timer to 80
 set timer to 85
 set timer to 90
 set timer to 95
+set timer to 100
