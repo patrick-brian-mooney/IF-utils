@@ -39,7 +39,6 @@ import shlex, signal, string, subprocess, sys
 import tarfile, threading, time, traceback
 import uuid
 
-
 # Definitions of debugging verbosity levels:
 # 0         Only print "regular things": solutions found, periodic processing updates, fatal errors
 # 1         Also display warnings.
@@ -63,8 +62,6 @@ successful_paths_directory = working_directory / 'successful_paths'
 logs_directory = working_directory / 'logs'
 
 commands_file = base_directory / 'commands'
-mistakes_file = base_directory / 'mistakes.json'
-disambiguation_file = base_directory / 'disambiguation.json'
 rooms_file = base_directory / 'rooms.json'
 
 # Global statistics
@@ -72,20 +69,415 @@ dead_ends = 0
 successes = 0
 moves = 0
 script_run_start = datetime.datetime.now()
+maximum_walkthrough_length = 0                  # FIXME: we need to calculate this!
 
 progress_data = dict()
 
 
-# Some data used when parsing the game's output.
+# Some data used when parsing the game's output and/or making decisions about what commands are allowed.
 failure_messages = [l.strip().lower() for l in ['*** You have failed ***',]]
 success_messages = [l.strip().lower() for l in ['*** Success. Final, lasting success. ***',]]
 
-# Some game data is stored in external files for various reasons.
-mistake_messages = json.loads(mistakes_file.read_text())
-disambiguation_messages = json.loads(disambiguation_file.read_text())
-rooms = json.loads(rooms_file.read_text())
+direction_inverses = {
+    'down': 'up',
+    'east': 'west',
+    'in': 'out',
+    'north': 'south',
+    'northeast': 'southwest',
+    'northwest': 'southeast',
+    'out': 'in',
+    'south': 'north',
+    'southeast': 'northwest',
+    'southwest': 'southeast',
+    'up': 'down',
+}
 
-all_commands = dict()           # We'll fill this in in a bit.
+# Some game data is stored in external files for various reasons.
+mistake_messages = [ """"oops" can only correct""", "after a few moments, you realise that", "already closed.",
+                     "beg your pardon?", "but it barely leaves a mark.", "but the glass stays in place.",
+                     "but there's no water here", "but you aren't", "but you aren't in anything",
+                     "darkness, noun.  an absence of light", "digging would achieve nothing here", "does not open.",
+                     "error: overflow in", "error: unknown door status", "error: unknown reason for",
+                     "for a while, but don't achieve much.", "for example, with 'set timer to 30'.",
+                     "i didn't understand that", "i didn't understand the way", "i don't think much is to be achieved",
+                     "i only understood you as far as", "if you could do that",
+                     "impossible to place objects on top of it.", "is already here.", "is locked in place.",
+                     "is that the best you can", "it is not clear what", "it is pitch dark, and you can't",
+                     "no pronouns are known to the game", "nothing happens -- the button must be",
+                     "nothing practical results", "real adventurers do not", "seem to be something you can lock.",
+                     "seem to be something you can unlock.", "sorry, you can only have one",
+                     "switching on the overhead lights would", "that doesn't seem to be something",
+                     "that would be less than courteous", "that would scarcely", "that's not a verb i recognise",
+                     "that's not something you can", "that's not something you need to refer to",
+                     "the challenge can only be initiated in the first turn", "the challenge has already been initiated",
+                     "the dreadful truth is, this is not a dream.", "the only exit is", "the only exits are",
+                     "the prototype's control panel only accepts", "the slot emits a small beep and your card is rejected",
+                     "the switch clicks, but no light", "the window appears to be locked", "the window is already",
+                     "there is no obvious way to", "there is no way that you could tear them up in time.",
+                     "there is nothing here that you could", "there is nothing to", "there's not enough water",
+                     "there's nothing sensible", "there's nothing suitable to drink", "you would achieve nothing",
+                     "this dangerous act would achieve little", "this one closes of its own accord.",
+                     "to set the explosive device, you need to", "to talk to someone, try", "try as you might, none of",
+                     "until you complete the modifications.", "violence isn't the answer",  "you would have to",
+                     "you are not strong enough to break", "you aren't feeling especially", "you can hear nothing but",
+                     "you can only do that to", "you can only get into something", "you can only use multiple objects",
+                     "you can see clearly enough in the gloom.", "you can't put something inside",
+                     "you can't put something on", "you can't see any such thing", "you can't see anything of interest",
+                     "you can't use multiple objects", "you can't, since", "you cannot attach the cable to",
+                     "you cannot get the window open", "you cannot make out any", "you cannot open the door with",
+                     "you cannot see what", "you can\u2019t since", "you cannot do that", "you're carrying too many",
+                     "you discover nothing of interest", "you do not have the key", "you won't be able to",
+                     "you don't have anything heavy enough", "you don't need to worry about", "you'll have to say which",
+                     "you excepted something not included", "you have not yet set", "you jump on the spot, fruitlessly",
+                     "you lack the nerve", "you see nothing", "you seem to have said too little", "your timer only accepts",
+                     "you seem to want to talk to someone, but", "you will have to be more specific about",
+                     "you would need to be near the prototype", "you would need you id card to",
+]
+
+disambiguation_messages = ["which do you mean", "please give one of the answers above"]
+
+rooms = {
+  "balcony": {"hideable": True},
+  "basement corridor": {"hideable": False},
+  "basement equipment room": {"hideable": True},
+  "basement landing": {"hideable": False},
+  "conference room": {"hideable": True},
+  "first floor corridor": {"hideable": True},
+  "first floor equipment room": {"hideable": True},
+  "foyer": {"hideable": False},
+  "inside the prototype": {"hideable": False},
+  "second floor corridor": {"hideable": True},
+  "the deutsch laboratory": {"hideable": False},
+  "upstairs landing": {"hideable": True},
+}
+
+# These next are routines that determine whether a command is available as a guess at a particular point in time.
+# Each function is passed one parameter, the current command being attempted (the function must look at the
+# global 'terp state for anything else) and returns a boolean value: True if the command is available right now, or
+# False otherwise. Many commands have no real need to be limited and so are mapped to always_true().
+
+# Functions that have no need to look at the current command to know if their function is available can just consume
+# it with *pargs syntax.
+def always_true(*pargs) -> bool:
+    """Utility function for commands that are always available. When we query whether
+    the command is available, this function just returns True.
+    """
+    return True
+
+
+def only_one_timer_command(*pargs) -> bool:
+    """Utility function for SET TIMER TO [number] commands. It returns True iff
+    no SET TIMER TO [number] command has yet been entered; otherwise, it returns
+    False.
+
+    The rationale for this is that SET TIMER TO [number] is essentially a WAIT
+    command every time in the game but once. (I suppose it is possible in theory
+    that one could set the timer, drop it, run past it again and set it to a higher
+    number, and this might even get around the 100-second time limit, but I can't
+    manage to see how this could be helpful, given that the prototype is nowhere
+    near the Conference Room-to-Outside path that the PC has to take under tight
+    time constraints while the timer is ticking. This is maybe a bit iffy, but seems
+    logically sound, all in all.) In any case, doing this makes the game's problem
+    space much more navigable, so it's going to have to be necessary if a brute-
+    force solution to the problem is going to be attempted in the first place.
+    """
+    return (not "set timer to" in terp_proc.text_walkthrough.lower())
+
+
+def only_in_prototype(*pargs) -> bool:
+    """This function is a filter for for actions that are only productive when the
+    Protagonist is inside the time machine prototype. There are a huge number of
+    such actions, most of which are SET PANEL TO [number]: these, for instance, are
+    only possible inside the Prototype because the panel is not portable.
+    """
+    return 'prototype' in terp_proc.current_room
+
+
+def not_twice_in_a_row(c: str) -> bool:
+    """This function prevents the same command from being issued twice consecutively.
+    This is useful for many commands, because it eliminates--well, REDUCES-- the
+    "when a command succeeds once, it will generally succeed twice; but the second
+    time is essentially a synonym for WAIT" problem.
+
+    Note that "same command" in the paragraph above means "the EXACT SAME command,
+    character for character," not "a similar command."
+    """
+    return (c.strip().strip(string.punctuation).strip().lower() == terp_proc.last_command.strip().strip(string.punctuation).strip().lower())
+
+
+def set_panel_once_before_pushing_button(c: str) -> bool:
+    """This filter is for SET PANEL TO [number], a set of commands that have some
+    comparatively complex requirements: 1. Only in the prototype. 2. Once a SET
+    PANEL command has been executed, no others are allowed until after a successful
+    PUSH SILVER BUTTON appears in the transcript (i.e., is not a mistake).
+
+    Otherwise, allowing repeated SET PANEL TO commands is equivalent to WAIT.
+    """
+    if only_in_prototype(c):
+        walkthrough = terp_proc.text_walkthrough.lower().strip()
+        if 'set panel' not in walkthrough:
+            return True
+        elif 'push silver' in walkthrough:
+            return (walkthrough.rindex('push silver') > walkthrough.rindex('set panel'))
+    return False
+
+
+def must_do_something_before_exiting_prototype(*pargs) -> bool:
+    """Another rule to prevent an effective synonym for WAIT: a repeated GET IN/GET
+    OUT OF PROTOTYPE cycle. This filter should be attached to EXITing verbs; it
+    disallows them if the previous (effective) command is something that means GET
+    IN PROTOTYPE, provided that the PC is in the Lab or the Prototype.
+    """
+    if 'prototype' not in terp_proc.current_room.strip().lower():
+        return True
+    index = 0
+    steps = terp_proc.list_walkthrough
+    for i, s in enumerate(steps):               # Find the last occurrence
+        if s.strip().lower() in ['enter prototype', 'go in']:
+            index = i
+    if index == len(steps) - 1:                 # If the last thing we did was get in, prohibit exiting.
+        return False
+    if index < 1:                               # If there's never been an entering command, allow the exiting command anyway, though it will be a mistake.
+        return True
+    steps = steps[1+index:]                     # Drop everything up to the last entering command.
+    while steps:                                # Now drop WAITs until we hit something else.
+        if steps[0].lower().strip() == 'wait':
+            steps.pop(0)
+        else:
+            break                               # If there's anything left after the WAITs after the entering command,
+    return bool([i for i in steps if i])        # ... return True to allow the exit command.
+
+
+def no_exit_when_there_are_synonyms(*pargs) -> bool:
+    """Prohibits the EXIT command from being used when there are other synonyms in a
+    particular situation. For instance, EXIT is not allowed in Deutsch Lab, because GO
+    SOUTH does the same thing. Preventing EXIT in that situation helps to control the
+    combinatorial explosion of the game's possibility space.
+
+    This filter is intended for the EXIT and GO OUT commands.   #FIXME: there should be other locations
+    """
+    if terp_proc.current_room in ['the deutsch laboratory']:
+        return False
+    return True
+
+
+def no_pacing_unless_hiding(c: str) -> bool:
+    """Prohibits back-and-forth movement unless the first step takes the PC into a
+    location where "hiding" from a pastPC or a futurePC is possible. (Actually, what
+    it does, to be more specific, is to nip off the option to leave a "hideable
+    location" without doing something first -- "do something" here DOES include
+    waiting, because we may be (may wind up being) intending to wait for pastPC or
+    futurePC to pass by outside. This function does not check for commands that
+    result in movement but that do not start with GO: synonyms and movement-as-a-
+    side-effect are not considered here.
+
+    This filter is intended for GO [direction] commands. However, so that it can
+    also be used with EXIT, it checks first to see whether the first word of the
+    command we're checking is GO and, if not returns True automatically: it doesn't
+    prevent the execution of non-GO commands.
+
+    Note that this function prohibits "one-step" but not "multi-step" pacing, which
+    is harder to detect (but drives less of a combinatorial explosion anyway, due to
+    the time constraints in the game). For instance, it prohibits GO SOUTH
+    immediately after GO NORTH, but it doesn't prevent any of the commands in GO UP.
+    GO UP. GO DOWN. GO DOWN, provided that the first GO DOWN is issued from a
+    "hideable" location (e.g., the second-floor landing).
+    """
+    if 'command' not in terp_proc.context_history:      # If this is our first command, allow it!
+        return True
+    c = c.lower().strip()
+    if not c.startswith("go"):
+        return True
+    previous_command = terp_proc.last_command.lower().strip()
+    if not previous_command.startswith('go'):
+        return True
+    current_direction = c[2:].strip()                   # The direction we're trying to go.
+    previous_direction = previous_command[2:].strip()   # The direction we went on the last turn.
+    assert current_direction in direction_inverses, "ERROR: we're trying to GO in an undefined direction!"
+    if direction_inverses[current_direction] == previous_direction:
+        return rooms[terp_proc.current_room]['hideable']
+    return True
+
+
+def not_after_exiting(c:str) -> bool:
+    """A filter for ENTER PROTOTYPE: don't allow ENTER PROTOTYPE right after getting out
+    of it. (This is equivalent to WAIT. WAIT: it's not even possible to hide from
+    pastPC and futurePC inside the prototype, since they'll see you through the open
+    door.)
+    """
+    return (terp_proc.last_command.lower().strip() not in ['exit', 'go out',])
+
+
+# Now that we've defined the filter functions, fill out the command-selection parameters.
+all_commands = {
+    "close deutsch lab": not_twice_in_a_row,
+    "close equipment door": not_twice_in_a_row,
+    "drop battery": always_true,
+    "drop bomb": always_true,
+    "enter prototype": not_after_exiting,
+    "examine benches": not_twice_in_a_row,
+    "exit": lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c)),
+    "fix prototype": always_true,
+    "flick switch": always_true,
+    "get all": not_twice_in_a_row,
+    "get battery": not_twice_in_a_row,
+    "get battery from flashlight": not_twice_in_a_row,
+    "get cable": not_twice_in_a_row,
+    "get cable and battery": not_twice_in_a_row,
+    "get crowbar": not_twice_in_a_row,
+    "get flashlight and brass key": not_twice_in_a_row,
+    "get notes": not_twice_in_a_row,
+    "go down": no_pacing_unless_hiding,
+    "go north": no_pacing_unless_hiding,
+    "go in": lambda c: (no_pacing_unless_hiding(c)) and (not_after_exiting(c) if ('deutsch' in terp_proc.current_room.lower()) else always_true(c)),
+    "go northeast": no_pacing_unless_hiding,
+    "go northwest": no_pacing_unless_hiding,
+    "go out": lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c) and no_pacing_unless_hiding(c)),
+    "go south": no_pacing_unless_hiding,
+    "go southeast": no_pacing_unless_hiding,
+    "go southwest": no_pacing_unless_hiding,
+    "go up": no_pacing_unless_hiding,
+    "lock deutsch lab": not_twice_in_a_row,
+    "lock equipment door": not_twice_in_a_row,
+    "open automatic door": not_twice_in_a_row,
+    "open deutsch door": not_twice_in_a_row,
+    "push alarm": not_twice_in_a_row,
+    "push basement": not_twice_in_a_row,
+    "push first": not_twice_in_a_row,
+    "push green button": not_twice_in_a_row,
+    "push second": not_twice_in_a_row,
+    "push silver button": not_twice_in_a_row,
+    "put batteries in flashlight": always_true,
+    "put battery in flashlight": always_true,
+    "remove battery from flashlight": always_true,
+    "smash window": always_true,
+    "turn off flashlight": not_twice_in_a_row,
+    "turn off lights": not_twice_in_a_row,
+    "turn on flashlight": not_twice_in_a_row,
+    "turn on lights": not_twice_in_a_row,
+    "unlock equipment door": not_twice_in_a_row,
+    "wait": always_true,
+    "set panel to 5": set_panel_once_before_pushing_button,
+    "set panel to 10": set_panel_once_before_pushing_button,
+    "set panel to 15": set_panel_once_before_pushing_button,
+    "set panel to 20": set_panel_once_before_pushing_button,
+    "set panel to 25": set_panel_once_before_pushing_button,
+    "set panel to 30": set_panel_once_before_pushing_button,
+    "set panel to 35": set_panel_once_before_pushing_button,
+    "set panel to 40": set_panel_once_before_pushing_button,
+    "set panel to 45": set_panel_once_before_pushing_button,
+    "set panel to 50": set_panel_once_before_pushing_button,
+    "set panel to 55": set_panel_once_before_pushing_button,
+    "set panel to 60": set_panel_once_before_pushing_button,
+    "set panel to 65": set_panel_once_before_pushing_button,
+    "set panel to 70": set_panel_once_before_pushing_button,
+    "set panel to 75": set_panel_once_before_pushing_button,
+    "set panel to 80": set_panel_once_before_pushing_button,
+    "set panel to 85": set_panel_once_before_pushing_button,
+    "set panel to 90": set_panel_once_before_pushing_button,
+    "set panel to 95": set_panel_once_before_pushing_button,
+    "set panel to 100": set_panel_once_before_pushing_button,
+    "set panel to 105": set_panel_once_before_pushing_button,
+    "set panel to 110": set_panel_once_before_pushing_button,
+    "set panel to 115": set_panel_once_before_pushing_button,
+    "set panel to 120": set_panel_once_before_pushing_button,
+    "set panel to 125": set_panel_once_before_pushing_button,
+    "set panel to 130": set_panel_once_before_pushing_button,
+    "set panel to 135": set_panel_once_before_pushing_button,
+    "set panel to 140": set_panel_once_before_pushing_button,
+    "set panel to 145": set_panel_once_before_pushing_button,
+    "set panel to 150": set_panel_once_before_pushing_button,
+    "set panel to 155": set_panel_once_before_pushing_button,
+    "set panel to 160": set_panel_once_before_pushing_button,
+    "set panel to 165": set_panel_once_before_pushing_button,
+    "set panel to 170": set_panel_once_before_pushing_button,
+    "set panel to 175": set_panel_once_before_pushing_button,
+    "set panel to 180": set_panel_once_before_pushing_button,
+    "set panel to 185": set_panel_once_before_pushing_button,
+    "set panel to 190": set_panel_once_before_pushing_button,
+    "set panel to 195": set_panel_once_before_pushing_button,
+    "set panel to 200": set_panel_once_before_pushing_button,
+    "set panel to 205": set_panel_once_before_pushing_button,
+    "set panel to 210": set_panel_once_before_pushing_button,
+    "set panel to 215": set_panel_once_before_pushing_button,
+    "set panel to 220": set_panel_once_before_pushing_button,
+    "set panel to 225": set_panel_once_before_pushing_button,
+    "set panel to 230": set_panel_once_before_pushing_button,
+    "set panel to 235": set_panel_once_before_pushing_button,
+    "set panel to 240": set_panel_once_before_pushing_button,
+    "set panel to 245": set_panel_once_before_pushing_button,
+    "set panel to 250": set_panel_once_before_pushing_button,
+    "set panel to 255": set_panel_once_before_pushing_button,
+    "set panel to 260": set_panel_once_before_pushing_button,
+    "set panel to 265": set_panel_once_before_pushing_button,
+    "set panel to 270": set_panel_once_before_pushing_button,
+    "set panel to 275": set_panel_once_before_pushing_button,
+    "set panel to 280": set_panel_once_before_pushing_button,
+    "set panel to 285": set_panel_once_before_pushing_button,
+    "set panel to 290": set_panel_once_before_pushing_button,
+    "set panel to 295": set_panel_once_before_pushing_button,
+    "set panel to 300": set_panel_once_before_pushing_button,
+    "set panel to 305": set_panel_once_before_pushing_button,
+    "set panel to 310": set_panel_once_before_pushing_button,
+    "set panel to 315": set_panel_once_before_pushing_button,
+    "set panel to 320": set_panel_once_before_pushing_button,
+    "set panel to 325": set_panel_once_before_pushing_button,
+    "set panel to 330": set_panel_once_before_pushing_button,
+    "set panel to 335": set_panel_once_before_pushing_button,
+    "set panel to 340": set_panel_once_before_pushing_button,
+    "set panel to 345": set_panel_once_before_pushing_button,
+    "set panel to 350": set_panel_once_before_pushing_button,
+    "set panel to 355": set_panel_once_before_pushing_button,
+    "set panel to 360": set_panel_once_before_pushing_button,
+    "set panel to 365": set_panel_once_before_pushing_button,
+    "set panel to 370": set_panel_once_before_pushing_button,
+    "set panel to 375": set_panel_once_before_pushing_button,
+    "set panel to 380": set_panel_once_before_pushing_button,
+    "set panel to 385": set_panel_once_before_pushing_button,
+    "set panel to 390": set_panel_once_before_pushing_button,
+    "set panel to 395": set_panel_once_before_pushing_button,
+    "set panel to 400": set_panel_once_before_pushing_button,
+    "set panel to 405": set_panel_once_before_pushing_button,
+    "set panel to 410": set_panel_once_before_pushing_button,
+    "set panel to 415": set_panel_once_before_pushing_button,
+    "set panel to 420": set_panel_once_before_pushing_button,
+    "set panel to 425": set_panel_once_before_pushing_button,
+    "set panel to 430": set_panel_once_before_pushing_button,
+    "set panel to 435": set_panel_once_before_pushing_button,
+    "set panel to 440": set_panel_once_before_pushing_button,
+    "set panel to 445": set_panel_once_before_pushing_button,
+    "set panel to 450": set_panel_once_before_pushing_button,
+    "set panel to 455": set_panel_once_before_pushing_button,
+    "set panel to 460": set_panel_once_before_pushing_button,
+    "set panel to 465": set_panel_once_before_pushing_button,
+    "set panel to 470": set_panel_once_before_pushing_button,
+    "set panel to 475": set_panel_once_before_pushing_button,
+    "set panel to 480": set_panel_once_before_pushing_button,
+    "set panel to 485": set_panel_once_before_pushing_button,
+    "set panel to 490": set_panel_once_before_pushing_button,
+    "set panel to 495": set_panel_once_before_pushing_button,
+    "set panel to 500": set_panel_once_before_pushing_button,
+    "set timer to 5": only_one_timer_command,
+    "set timer to 10": only_one_timer_command,
+    "set timer to 15": only_one_timer_command,
+    "set timer to 20": only_one_timer_command,
+    "set timer to 25": only_one_timer_command,
+    "set timer to 30": only_one_timer_command,
+    "set timer to 35": only_one_timer_command,
+    "set timer to 40": only_one_timer_command,
+    "set timer to 45": only_one_timer_command,
+    "set timer to 50": only_one_timer_command,
+    "set timer to 55": only_one_timer_command,
+    "set timer to 60": only_one_timer_command,
+    "set timer to 65": only_one_timer_command,
+    "set timer to 70": only_one_timer_command,
+    "set timer to 75": only_one_timer_command,
+    "set timer to 80": only_one_timer_command,
+    "set timer to 85": only_one_timer_command,
+    "set timer to 90": only_one_timer_command,
+    "set timer to 95": only_one_timer_command,
+    "set timer to 100": only_one_timer_command,
+}
 
 
 # Now. Some utility routines first.
@@ -108,7 +500,7 @@ def is_redundant_strand(which_path: str) -> bool:
     """Checks to see whether WHICH_PATH is redundant relative to the global progress
     store. A path is considered to be redundant if it's not necessary to store it
     because a "further upstream" path has already been checkpointed as complete in a
-    way that makes it uncessary to store data showing the WHICH_PATH is complete,
+    way that makes it unnecessary to store data showing the WHICH_PATH is complete,
     because that upstream checkpoint-as-complete guarantees that WHICH_PATH will
     never be hit again in the first place. Returns True if WHICH_PATH is redundant
     in this sense.
@@ -154,126 +546,12 @@ def document_problem(problem_type: str, data: dict) -> None:
     found = False
     data['traceback'] = traceback.extract_stack()
     while not found:
-        p = base_directory / (problem_type + '_' + datetime.datetime.now().isoformat().replace(':', '_') + '.json')
+        p = logs_directory / (problem_type + '_' + datetime.datetime.now().isoformat().replace(':', '_') + '.json')
         found = not p.exists()
     p.write_text(json.dumps(data, indent=2, default=str, sort_keys=True))
 
 
-# These next are routines that determine whether a command is available as a guess at a particular point in time.
-# Each function is passed one parameter, the current command being attempted (the function must look at the
-# global 'terp state for anything else) and returns a boolean value: True if the command is available right now, or
-# False otherwise. Many commands have no real need to be limited and so are mapped to always_true().
-
-# Functions that have no need to look at the current command to know if their function is available can just consume
-# it with *pargs syntax.
-def always_true(*pargs) -> bool:
-    """Utility function for commands that are always available. When we query whether
-    they're available, just returns True.
-    """
-    return True
-
-
-def only_one_timer_command(*pargs) -> bool:
-    """Utility function for SET TIMER TO [number] commands. It returns True iff
-    no SET TIMER TO [number] command has yet been entered; otherwise, it returns
-    False.
-
-    The rationale for this is that SET TIMER TO [number] is essentially a WAIT
-    command every time in the game but once. (I suppose it is possible in theory
-    that one could set the timer, drop it, run past it again and set it to a higher
-    number, and this might even get around the 100-second time limit, but I can't
-    manage to see how this could be helpful, given that the prototype is nowhere
-    near the Conference Room-to-Outside path that the PC has to take under tight
-    time constraints while the timer is ticking. This is maybe a bit iffy, but seems
-    logically sound, all in all.) In any case, doing this makes the game's problem
-    space much more navigable, so it's going to have to be necessary if a brute-
-    force solution to the problem is going to be attempted in the first place.
-    """
-    return (not "set timer to" in terp_proc._walkthrough.lower())
-
-
-def only_in_prototype(*pargs) -> bool:
-    """This function is a filter for for actions that are only productive when the
-    Protagonist is inside the time machine prototype. There are a huge number of
-    such actions, most of which are SET PANEL TO [number]: these are only possible
-    inside the Prototype because the panel is not portable.
-    """
-    return 'prototype' in terp_proc.context_history['room']
-
-
-def not_twice_in_a_row(c: str) -> bool:
-    """This function prevents the same command from being issued twice consecutively.
-    This is useful for many commands, because it eliminates--well, REDUCES-- the
-    "when a command succeeds once, it will generally succeed twice; but the second
-    time is essentially a synonym for WAIT" problem.
-
-    Note that "same command" in the paragraph above means "the EXACT SAME command',
-    character for character, not "a similar command."
-    """
-    return (c.strip().strip(string.punctuation).strip().lower() == terp_proc.context_history['command'].strip().strip(string.punctuation).strip().lower())
-
-
-def set_panel_once_before_pushing_button(c: str) -> bool:
-    """This filter is for SET PANEL TO [number], a set of commands that have some
-    comparatively complex requirements: 1. Only in the prototype. 2. Once a SET
-    PANEL command has been executed, no others are allowed until after a successful
-    PUSH SILVER BUTTON appears in the transcript (i.e., is not a mistake).
-
-    Otherwise, allowing repeated SET PANEL TO commands is equivalent to WAIT.
-    """
-    if only_in_prototype(c):
-        walkthrough = terp_proc._walkthrough.lower().strip()
-        if 'set panel' not in walkthrough:
-            return True
-        elif 'push silver' in walkthrough:
-            return (walkthrough.rindex('push silver') > walkthrough.rindex('set panel'))
-    return False
-
-
-def must_do_something_before_exiting_prototype(*pargs) -> bool:
-    """Another rule to prevent an effective synonym for WAIT: a repeated GET IN/GET
-    OUT OF PROTOTYPE cycle. This filter should be attached to EXITing verbs; it
-    disallows them if the previous (effective) command is something that means GET
-    IN PROTOTYPE, provided that the PC is in the Lab or the Prototype.
-    """
-    if 'prototype' not in terp_proc.context_history['room'].strip().lower():
-        return True
-    steps = list(reversed([h['command'] for h in terp_proc.context_history.maps if 'command' in h]))
-    index = 0
-    for i, s in enumerate(steps):               # Find the last occurrence
-        if s.strip().lower() in ['enter prototype', 'go in']:
-            index = i
-    if index == len(steps) - 1:                 # If the last thing we did was get in, prohibit exiting.
-        return False
-    if index < 1:                               # If there's never been an entering command, allow the exiting command anyway, though it will almost certainly be interpreted as a mistake.
-        return True
-    steps = steps[1+index:]                     # Drop everything up to the last entering command.
-    while steps:                                # Now drop WAITs until we hit something else.
-        if steps[0].lower().strip() == 'wait':
-            steps.pop(0)
-        else:
-            break                               # If there's anything left after the WAITs after the entering command,
-    return bool([i for i in steps if i])        # ... return True to allow the exit command.
-
-# Now that we've defined the filter functions, fill out the command-selection parameters.
-with open(commands_file) as cmd_file:
-    for l in cmd_file.readlines():
-        l = l.strip().lower()
-        if 'set timer' in l:
-            all_commands[l] = only_one_timer_command
-        elif 'set panel' in l:
-            all_commands[l] = set_panel_once_before_pushing_button
-        elif l in ['exit', 'go out']:
-            all_commands[l] = must_do_something_before_exiting_prototype
-        elif l.startswith('turn off') or l.startswith('turn on') or l.startswith('unlock') or l.startswith('close'):
-            all_commands[l] = not_twice_in_a_row
-        elif l.startswith('push') or l.startswith('turn on') or l.startswith('examine') or l.startswith('get') or l.startswith('open'):
-            all_commands[l] = not_twice_in_a_row
-        else:
-            all_commands[l] = always_true
-
-
-# And a utility class used to wrap an output stream for the TerpConnection, below.
+# Here's a utility class used to wrap an output stream for the TerpConnection, below.
 class NonBlockingStreamReader(object):
     """Wrapper for subprocess.Popen's stdout and stderr streams, so that we can read
     from them without having to worry about blocking.
@@ -365,25 +643,25 @@ class TerpConnection(object):
     def __str__(self):
         ret =  "< TerpConnection object; "
         try:
-            ret += " room: " + self.context_history['room'] + ';'
+            ret += " room: " + self.current_room + ';'
         except Exception:
             ret += " room: [unknown]\n"
         try:
-            ret += " inventory: " + str(self.context_history['inventory']) + ';'
+            ret += " inventory: " + str(self.peek_at_inventory) + ';'
         except Exception:
             ret += " inventory: [unknown];"
         try:
-            ret += " last command: " + self.context_history['command']
+            ret += " last command: " + self.last_command
         except Exception:
             ret += " last command: [unknown]"
         ret += " >"
         return ret
 
-    def _clean_up(self):        # FIXME: this is currently unused!
+    def _clean_up(self):        # FIXME: this is currently unused! Nothing calls it!
         """Politely close down the connection to the 'terp. Store None in its wrapped
         objects to force a crash if we keep trying to work with it.
         """
-        debug_print("Cleaning up the 'terp connection.")
+        debug_print("Cleaning up the 'terp connection.", 2)
         self._reader._quit = True
         self._proc.stdin.close()
         self._proc.terminate()
@@ -396,21 +674,21 @@ class TerpConnection(object):
         until we've been patient enough and give up. If there is no text at all and
         RETRY is False, just return an empty string.
         """
-        debug_print("(read STDOUT from buffer)", 4)
+        debug_print("(read STDOUT from buffer)", 5)
         ret = self._reader.read_text()
-        if (not ret) and retry:              # Sometimes we need to wait on the buffer a few times.
+        if (not ret) and retry:                 # Sometimes we need to wait on the buffer a few times.
             sleep_time = 0.1
-            for i in range(20):  # FIXME: should we just be upping the timeout on the read? -- probably not
+            for i in range(20):                 # Should we just be upping the timeout on the read? -- probably not
                 ret = self._reader.read_text()
                 if ret:
                     break
                 else:
                     time.sleep(sleep_time)
-                    sleep_time *= 1.33333        # Wait longer and longer for data from the 'terp.
+                    sleep_time *= 1.33333       # Wait longer and longer for data from the 'terp.
                     if i > 5:
                         pass                    # Breakpoint!
             if not ret:
-                debug_print("ERROR: unable to get any data from the 'terp!", 0)
+                print("ERROR: unable to get any data from the 'terp!", 0)
         return ret
 
     def _add_context_to_history(self, context: dict) -> None:
@@ -433,21 +711,62 @@ class TerpConnection(object):
             pass                    # No need to delete a save file, then.
         self.context_history = self.context_history.parents       # Drop one frame from the context chain.
 
-    def get_last_output(self) -> str:
+    def repeat_last_output(self) -> str:
         """A utility function to repeat the last output that the 'terp produced. Does NOT
-        look at or touch any data currently in the buffer waiting to be read.
+        look at or touch any data currently in the buffer waiting to be read; it just
+        consults the 'terp's context history to extract the last output that was
+        recorded there.
         """
         debug_print('(re-reading last output)', 4)
         return self.context_history['output']
 
     @property
-    def _walkthrough(self) -> str:
-        """Convenience function: get a terse walkthrough consisting of the commands
-        that produced the 'terp's current game state. This is used to index the
-        current solution space for algorithmic-progress-checkpointing purposes.
+    def list_walkthrough(self) -> list:
+        """Convenience function: return a list of the commands that were executed to get
+        the game into this state. Unlike text_walkthrough(), below, this doesn't return
+        a single string that includes all commands, but rather a list in which each item
+        is a single textual command.
         """
-        ret = '. '.join((reversed([frame['command'] for frame in self.context_history.maps]))).upper()
-        return ret + '.'
+        return list(reversed([frame['command'] for frame in self.context_history.maps]))
+
+    @property
+    def text_walkthrough(self) -> str:
+        """Convenience function: get a terse walkthrough consisting of the commands
+        that produced the 'terp's current game state. Unlike list_walkthrough(), above,
+        what is returned is a single string representing the entire walkthrough, in
+        which steps are separated by periods, rather than a list of steps.
+
+        This function is used to produce keys that index the current solution space for
+        algorithmic-progress-checkpointing purposes, among other purposes.
+        """
+        return '. '.join(self.list_walkthrough).upper() + '.'
+
+    @property
+    def current_room(self) -> str:
+        """Convenience function: get the name of the room currently occupied by the PC, if
+        we can tell what room that is; otherwise, return a string indicating we don't
+        know.
+        """
+        return self.context_history['room'] if ('room' in self.context_history) else ['unknown']
+
+    @property
+    def last_command(self) -> str:
+        """Convenience function: returns the last command passed into the 'terp, if there
+        has been one; otherwise, returns None.
+        """
+        return self.context_history['command'] if ('command' in self.context_history) else None
+
+    @property
+    def peek_at_inventory(self) -> str:
+        """Returns what the TerpConnection thinks is the current inventory. Note that this
+        does not actually execute an INVENTORY command, which is in any case executed
+        automatically at every turn; it just returns the result of the last INVENTORY
+        command, which the 'terp stores.
+
+        Use the all-caps INVENTORY convenience function to pass a new INVENTORY command
+        to the 'terp and get the results of that.
+        """
+        return self.context_history['inventory'] if ('inventory' in self.context_history) else list()
 
     @property
     def _all_checkpoints(self) -> list:
@@ -459,12 +778,14 @@ class TerpConnection(object):
         space we've already tried. Write that updated dictionary to disk.
         """
         global progress_data
-        progress_data[self._walkthrough] = {
+        progress_data[self.text_walkthrough] = {
             'dead ends': dead_ends,
             'successes': successes,
             'total moves': moves,
-            'time': get_total_time(), }
-        debug_print("(saving algorithmic progress data.)", 2)
+            'time': get_total_time(),
+            'maximum walkthrough length': maximum_walkthrough_length,
+        }
+        debug_print("(saving algorithm progress data.)", 2)
         clean_progress_data()
         with bz2.open(progress_checkpoint_file, mode='wt') as pc_file:
             json.dump(progress_data, pc_file, default=str, indent=2, sort_keys=True)
@@ -475,7 +796,7 @@ class TerpConnection(object):
         output or do anything else about the command. It just passes a command into
         the 'terp.
         """
-        debug_print("(passing command %s to 'terp" % command.upper(), 4)
+        debug_print("(passing command %s to 'terp)" % command.upper(), 4)
         command = (command.strip() + '\n')
         self._proc.stdin.write(command)
         self._proc.stdin.flush()
@@ -508,7 +829,7 @@ class TerpConnection(object):
         while not found_name:
             p = save_file_directory / str(uuid.uuid4())
             found_name = not p.exists()                         # Yes, vulnerable to race conditions, Vanishingly so, though.
-        debug_print("(saving 'terp state to %s)" % p, 4)
+        debug_print("(saving 'terp state to %s)" % p, 5)
         _ = self.process_command_and_return_output('save', be_patient=False)   # We can't expect to get a response here: the 'terp doesn't necessarily end it's response with \n, because it's waiting for a response on the same line, so we won't get the prompt text until after we've passed the prompt answer in.
         output = self.process_command_and_return_output(os.path.relpath(p, base_directory))
         if ("save failed" in output.lower()) or (not p.exists()):
@@ -533,7 +854,7 @@ class TerpConnection(object):
         other aspect of the TerpConnection; notably, does not drop the context_history
         frame from the context history stack.
         """
-        debug_print("(restoring 'terp state to previous save file)", 4)
+        debug_print("(restoring 'terp state to previous save file)", 5)
         assert 'checkpoint' in self.context_history.maps[1], "ERROR: trying to restore to a state for which there is no save file!"
         self._restore_terp_to_save_file(self.context_history.maps[1]['checkpoint'])
 
@@ -568,7 +889,7 @@ class TerpConnection(object):
         while not found_name:
             p = working_directory / ('transcript_' + datetime.datetime.now().isoformat().replace(':', '_'))
             found_name = not p.exists()  # Yes, vulnerable to race conditions, Vanishingly so, though.
-        debug_print("(saving terp state to %s)" % p, 4)
+        debug_print("(saving transcript to %s)" % p, 5)
         _ = self.process_command_and_return_output('script', be_patient=False)
         _ = self.process_command_and_return_output(os.path.relpath(p, base_directory))
 
@@ -669,7 +990,7 @@ class TerpConnection(object):
 
 
 terp_proc = TerpConnection()
-print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.get_last_output() + "\n\n")
+print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
 
 
 def execute_command(command:str) -> dict:
@@ -706,7 +1027,8 @@ def make_moves(depth=0) -> None:
     """Try a move. See if it loses. If not, see if it was useless. If either is true,
     just undo it and move on to the next command: there's no point in continuing if
     either is the case. ("Useless" here means that the 'terp signaled back to us
-    that it was a mistake in some sense.)
+    that it was a mistake in some sense; we then assume that it did nothing more
+    than, perhaps, be a synonym for WAIT.)
 
     Otherwise, check to see if we won. If we did, document the fact and move along.
 
@@ -732,9 +1054,9 @@ def make_moves(depth=0) -> None:
     game; the function uses this parameter internally to track how deep we are. This
     is occasionally useful for debugging purposes.
     """
-    global successes, dead_ends, moves
+    global successes, dead_ends, moves, maximum_walkthrough_length
 
-    if is_redundant_strand(terp_proc._walkthrough):      # If we've tracked that we've been down this path, skip it.
+    if is_redundant_strand(terp_proc.text_walkthrough):      # If we've tracked that we've been down this path, skip it.
         return
 
     these_commands = list(all_commands.keys())  # Putting them in random order doesn't make the process go faster ...
@@ -743,14 +1065,14 @@ def make_moves(depth=0) -> None:
     # Make sure we've got a save file to restore from after we try commands.
     if 'checkpoint' not in terp_proc.context_history.maps[0]:
         terp_proc.context_history['checkpoint'] = terp_proc.save_terp_state()
-    # Keep a copy of our starting state. Dict() to collapse the ChaimMap to a flat state.
+    # Keep a copy of our starting state. Dict() to collapse the ChainMap to a flat state.
     # This data includes a reference to a save state that we'll restore to after every single move.
     starting_frame = dict(terp_proc.context_history)
 
     for c_num, c in enumerate(these_commands):
         if all_commands[c](c):  # check to see if we're allowed to try this command right now. If so ...
             try:                # execute_command() produces a checkpoint that will be used by _unroll(), below.
-                room_name = terp_proc.context_history['room'] if ('room' in terp_proc.context_history) else ['unknown']
+                room_name = terp_proc.current_room
                 new_context = execute_command(c)
                 if ('checkpoint' not in new_context) or (not new_context['checkpoint'].exists()):
                     if (not new_context['success']) and (not new_context['failed']) and (not new_context['mistake']):
@@ -766,12 +1088,11 @@ def make_moves(depth=0) -> None:
                     successes += 1
                     time.sleep(5)               # Let THAT sit there on the debugging screen for a few seconds.
                 elif new_context['mistake']:
-                    debug_print('command %s was detected to be a mistake!' % c, 4)
                     dead_ends += 1
                 elif new_context['failed']:
-                    debug_print('command %s lost the game!' % c, 4)
                     dead_ends += 1
                 else:               # If we didn't win, lose, or get told we made a mistake, make another move.
+                    maximum_walkthrough_length = max(maximum_walkthrough_length, len(terp_proc.list_walkthrough))
                     make_moves(depth=1+depth)
             except Exception as errrr:
                 document_problem("general_exception", data={'error': errrr, 'command': c})
@@ -817,7 +1138,7 @@ def validate_directory(p: Path, description: str) -> None:
         assert p.is_dir(), "ERROR: %s exists, but is not a directory!" % p
     else:
         p.mkdir()
-        debug_print("    successfully created %s directory %s" % (description, shlex.quote(str(p))))
+        print("    successfully created %s directory %s" % (description, shlex.quote(str(p))))
 
 
 def empty_save_files() -> None:
@@ -862,7 +1183,7 @@ def load_progress_data() -> None:
     """Sets global variables based on saved progress data from a previous run of the
     script, if there is any saved progress data from a previous run of the script.
     """
-    global dead_ends, successes, script_run_start, moves
+    global dead_ends, successes, script_run_start, moves, maximum_walkthrough_length
     global progress_data
     try:
         with bz2.open(progress_checkpoint_file, mode='rt') as pc_file:
@@ -871,6 +1192,7 @@ def load_progress_data() -> None:
             dead_ends = max([t['dead ends'] for t in progress_data.values()])
             successes = max([t['successes'] for t in progress_data.values()])
             moves = max([t['total moves'] for t in progress_data.values()])
+            maximum_walkthrough_length = max([t['maximum walkthrough length'] for t in progress_data.values()])
         print("Successfully loaded previous progress data!")
     except Exception as errr:                   # Everything was initialized up top, anyway.
         print("Can't restore progress data: starting from scratch!")
