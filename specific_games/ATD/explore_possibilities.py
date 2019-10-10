@@ -35,6 +35,7 @@ from pathlib import Path
 
 import pprint
 import queue
+import random
 import shlex, signal, string, subprocess, sys
 import tarfile, threading, time, traceback
 import uuid
@@ -46,6 +47,7 @@ import uuid
 # 3         Also display each node explored: (location, action taken) -> result
 # 4         Also chatter extensively about individual steps taken while exploring each node
 verbosity = 2       # How chatty are we being about our progress?
+maximum_verbosity_level = 4
 transcript = True   # If True, issue a SCRIPT command at the beginning of the game to keep a transcript of the whole thing.
 
 # Program-running parameters. Probably not useful when not on my system. Override with -i  and -s, respectively.
@@ -156,7 +158,7 @@ rooms = {
 # global 'terp state for anything else) and returns a boolean value: True if the command is available right now, or
 # False otherwise. Many commands have no real need to be limited and so are mapped to always_true().
 
-# Functions that have no need to look at the current command to know if their function is available can just consume
+# Functions that have no need to look at the current command to know if their action is available can just consume
 # it with *pargs syntax.
 def always_true(*pargs) -> bool:
     """Utility function for commands that are always available. When we query whether
@@ -190,7 +192,7 @@ def only_in_prototype(*pargs) -> bool:
     such actions, most of which are SET PANEL TO [number]: these, for instance, are
     only possible inside the Prototype because the panel is not portable.
     """
-    return 'prototype' in terp_proc.current_room
+    return 'prototype' in terp_proc.current_room.lower()
 
 
 def not_twice_in_a_row(c: str) -> bool:
@@ -278,12 +280,13 @@ def no_pacing_unless_hiding(c: str) -> bool:
 
     Note that this function prohibits "one-step" but not "multi-step" pacing, which
     is harder to detect (but drives less of a combinatorial explosion anyway, due to
-    the time constraints in the game). For instance, it prohibits GO SOUTH
-    immediately after GO NORTH, but it doesn't prevent any of the commands in GO UP.
-    GO UP. GO DOWN. GO DOWN, provided that the first GO DOWN is issued from a
-    "hideable" location (e.g., the second-floor landing).
+    the time constraints in the game and the fact that multi-step pacing takes more
+    in-game moves to execute). For instance, it prohibits GO SOUTH immediately after
+    GO NORTH, but it doesn't prevent any of the commands in GO UP. GO UP. GO DOWN.
+    GO DOWN, provided that the first GO DOWN is issued from a "hideable" location
+    (e.g., the second-floor landing).
     """
-    if 'command' not in terp_proc.context_history:      # If this is our first command, allow it!
+    if 'command' not in terp_proc.context_history:      # If this is the game's first command, allow it!
         return True
     c = c.lower().strip()
     if not c.startswith("go"):
@@ -308,12 +311,25 @@ def not_after_exiting(c:str) -> bool:
     return (terp_proc.last_command.lower().strip() not in ['exit', 'go out',])
 
 
+def only_after_setting_timer(c:str) -> bool:
+    """A filter for DROP BOMB: it's only allowed after a SET TIMER command. There's no
+    real reason to drop the bomb before setting the timer, because the location
+    where the bomb needs to be dropped to be effective is nowhere near a through-
+    path that works for any other task that needs to be performed while the timer is
+    ticking. Preventing DROP BOMB before SET TIMER really prunes down the
+    possibility space, though, because of course SET TIMER prunes the possibility
+    space a lot on its own by putting another constraint on game timing.
+    """
+    return ("set timer to" in terp_proc.text_walkthrough.lower())
+
+
 # Now that we've defined the filter functions, fill out the command-selection parameters.
+# Sure, this could be done more tersely, and has been in previous versions, but being explicit pays off in clarity.
 all_commands = {
     "close deutsch lab": not_twice_in_a_row,
     "close equipment door": not_twice_in_a_row,
     "drop battery": always_true,
-    "drop bomb": always_true,
+    "drop bomb": only_after_setting_timer,
     "enter prototype": not_after_exiting,
     "examine benches": not_twice_in_a_row,
     "exit": lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c)),
@@ -332,7 +348,6 @@ all_commands = {
     "go in": lambda c: (no_pacing_unless_hiding(c)) and (not_after_exiting(c) if ('deutsch' in terp_proc.current_room.lower()) else always_true(c)),
     "go northeast": no_pacing_unless_hiding,
     "go northwest": no_pacing_unless_hiding,
-    "go out": lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c) and no_pacing_unless_hiding(c)),
     "go south": no_pacing_unless_hiding,
     "go southeast": no_pacing_unless_hiding,
     "go southwest": no_pacing_unless_hiding,
@@ -480,7 +495,7 @@ all_commands = {
 }
 
 
-# Now. Some utility routines first.
+# Now that we've specified the data and some basic handling methods ... some utility routines first.
 def debug_print(what, min_level=1) -> None:
     """Print WHAT, if the global VERBOSITY is at least MIN_LEVEL."""
     if verbosity >= min_level:
@@ -499,11 +514,11 @@ def get_total_time() -> float:
 def is_redundant_strand(which_path: str) -> bool:
     """Checks to see whether WHICH_PATH is redundant relative to the global progress
     store. A path is considered to be redundant if it's not necessary to store it
-    because a "further upstream" path has already been checkpointed as complete in a
-    way that makes it unnecessary to store data showing the WHICH_PATH is complete,
-    because that upstream checkpoint-as-complete guarantees that WHICH_PATH will
-    never be hit again in the first place. Returns True if WHICH_PATH is redundant
-    in this sense.
+    because a "further upstream" (shorter) path has already been checkpointed as
+    complete in a way that makes it unnecessary to store data showing the WHICH_PATH
+    is complete, because that upstream checkpoint-as-complete guarantees that
+    WHICH_PATH will never be hit again in the first place. Returns True if
+    WHICH_PATH is redundant in this sense, and False if it is not redundant.
     """
     for key in progress_data:
         if (which_path.startswith(key.rstrip('.'))) and (which_path != key):
@@ -524,7 +539,7 @@ def clean_progress_data() -> None:
         progress_data = pruned_dict
 
 
-def document_problem(problem_type: str, data: dict) -> None:
+def document_problem(problem_type: str, data: dict, also_print: bool=True) -> None:
     """Document the fact that a problem situation arose. During early exploratory runs,
     the intent is to gather as much data as possible about what future runs will be
     like rather than to actually solve the problem at hand (i.e., to fully explore the
@@ -542,6 +557,8 @@ def document_problem(problem_type: str, data: dict) -> None:
 
     A filename for the log file is automatically determined and the file is written
     to the logs/ directory.
+
+    If ALSO_PRINT is True (the default), also dumps the complaint to the terminal.
     """
     found = False
     data['traceback'] = traceback.extract_stack()
@@ -549,6 +566,9 @@ def document_problem(problem_type: str, data: dict) -> None:
         p = logs_directory / (problem_type + '_' + datetime.datetime.now().isoformat().replace(':', '_') + '.json')
         found = not p.exists()
     p.write_text(json.dumps(data, indent=2, default=str, sort_keys=True))
+    if also_print:
+        print("PROBLEM TYPE: " + problem_type + '\n\nData:\n')
+        pprint.pprint(data)
 
 
 # Here's a utility class used to wrap an output stream for the TerpConnection, below.
@@ -627,9 +647,9 @@ class TerpConnection(object):
     higher-level way.
     """
     def __init__(self):
-        """Opens a connection to a 'terp process that is playing ATD. Saves a reference to
-        that process. Wraps its STDOUT stream in a nonblocking wrapper. Saves a reference
-        to that wrapper. Initialized the command-history data structure.
+        """Opens a connection to a 'terp process that plays ATD. Saves a reference to that
+        process. Wraps its STDOUT stream in a nonblocking wrapper. Saves a reference to
+        that wrapper. Initialized the command-history data structure.
         """
         parameters = [str(interpreter_location)] + interpreter_flags + [str(story_file_location)]
         self._proc = subprocess.Popen(parameters, shell=False, universal_newlines=True, bufsize=1,
@@ -684,11 +704,11 @@ class TerpConnection(object):
                     break
                 else:
                     time.sleep(sleep_time)
-                    sleep_time *= 1.33333       # Wait longer and longer for data from the 'terp.
+                    sleep_time *= 1.48          # Wait longer and longer for data from the 'terp.
                     if i > 5:
                         pass                    # Breakpoint!
             if not ret:
-                print("ERROR: unable to get any data from the 'terp!", 0)
+                document_problem("no data", data={'ERROR': "unable to get any data at all from the 'terp, even after being patient!"})
         return ret
 
     def _add_context_to_history(self, context: dict) -> None:
@@ -802,15 +822,16 @@ class TerpConnection(object):
         self._proc.stdin.flush()
 
     def process_command_and_return_output(self, command:str, be_patient:bool=True) -> str:
-        """A convenience wrapper: passes a command into the terp, and returns whatever text
+        """A convenience wrapper: passes a command into the 'terp, and returns whatever text
         the 'terp barfs back up. Does minimal processing on the command passed in -- it
-        adds a newline -- and no processing on the output text. (All text is processed
+        adds a newline (or rathher, a newline is added by a function that is called by
+        this function -- and no processing on the output text. (All text is processed
         using the system default encoding because we're in text mode, or "universal
-        newlines" mode, if you prefer.) In particular, it performs no EVALUATION of the
-        text's output. leaving that to other code.
+        newlines" mode, if you prefer. Heck, Python 3.6 does so prefer.) In particular,
+        it performs no EVALUATION of the text's output. leaving that to other code.
 
-        If BE_PATIENT is True, pass True to _get_output()'s RETRY parameter, so that it
-        will be more patient while waiting for output. If not--and there are some
+        If BE_PATIENT is True, passes True to _get_output()'s RETRY parameter, so that
+        it will be more patient while waiting for output. If not--and there are some
         annoying situations where the 'terp doesn't cough up any response--then just
         don't bother waiting if we can't get anything on the first attempt.
         """
@@ -1016,6 +1037,7 @@ def record_solution() -> None:
         found = not p.exists()
     p.write_text(json.dumps(solution_steps, default=str, indent=2, sort_keys=True))
     with tarfile.open(name=str(p).rstrip('json') + 'tar.bz2', mode='w:bz2') as save_file_archive:
+        save_file_archive.add(os.path.relpath(p))       # Also add the JSON file, for completeness.
         for c in [m['checkpoint'] for m in terp_proc.context_history.maps if 'checkpoint' in m]:
             if c.exists():
                 save_file_archive.add(os.path.relpath(c))
@@ -1034,25 +1056,26 @@ def make_moves(depth=0) -> None:
 
     If we didn't win, lose, or get told we made a mistake, the function calls itself
     again to make another set of moves. Along the way, it does the record-keeping
-    that needs to happen for us to be able to report the steps that led to the
-    success state after the fact. One way that it does this is by managing "context
-    frames," summaries of the game state that are kept in a chain. Most information
-    in them is stored "sparsely," i.e. only if it changed since the previous frame
-    (the exception being the 'command' field, which is always filled in.) These
-    context frames are part of the global interpreter-program connection object and
-    can be indexed like a dictionary to look at the current game state, or examined
-    individually to see how the state has changed. Storing a "successful path"
-    record involves storing each frame individually in a JSON file. Reconstructing
-    the 'command' fields of each frame in the proper (i.e., reversed) order produces
-    a walkthrough to the current path.
+    that needs to happen for us to be able to report the steps that led to a
+    success state, once we stumble into one. One way that it does this is by managing
+    "context frames," summaries of the game state that are kept in a chain. Most
+    information in them is stored "sparsely," i.e. only if it changed since the
+    previous frame (the exception being the 'command' field, which is always filled
+    in). These context frames are part of the global interpreter-program connection
+    object and can be indexed like a dictionary to look at the current game state,
+    or examined individually to see how the state has changed. Storing a "successful
+    path" record involves storing each frame sequentially in a JSON file.
+    Reconstructing the 'command' fields of each frame in the proper (i.e., reversed)
+    order produces a walkthrough to the current path.
 
     This function also causes in-game "save" checkpoints to be created for each
     frame automatically, as a side effect that occurs when evaluate_context() is
     running to interpret the game's output.
 
-    Leave DEPTH parameter set to zero when calling the function to start playing the
-    game; the function uses this parameter internally to track how deep we are. This
-    is occasionally useful for debugging purposes.
+    Leave the DEPTH parameter set to zero when calling the function to start playing
+    the game; the function uses this parameter internally to track how deep we are.
+    This is occasionally useful for debugging purposes, and has an effect on the
+    visual printing of each step that occurs at debugging verbosity levels 3+.
     """
     global successes, dead_ends, moves, maximum_walkthrough_length
 
@@ -1060,7 +1083,7 @@ def make_moves(depth=0) -> None:
         return
 
     these_commands = list(all_commands.keys())  # Putting them in random order doesn't make the process go faster ...
-    #random.shuffle(these_commands)              # But it does make it less excruciating to watch.
+    # random.shuffle(these_commands)              # But it does make it less excruciating to watch, and helps detect large-scale patterns better in early runs.
 
     # Make sure we've got a save file to restore from after we try commands.
     if 'checkpoint' not in terp_proc.context_history.maps[0]:
@@ -1100,7 +1123,7 @@ def make_moves(depth=0) -> None:
                 moves += 1
                 total = dead_ends + successes
                 if (total % 1000 == 0) or ((verbosity >= 2) and (total % 100 == 0)) or ((verbosity >= 4) and (total % 20 == 0)):
-                    print("Explored %d complete paths so far, making %d total moves in %.2f minutes" % (total, moves, get_total_time()/60))
+                    print("Explored %d complete paths so far, making %d total moves in %.2f hours" % (total, moves, get_total_time()/3600))
                 terp_proc._restore_terp_to_save_file(starting_frame['checkpoint'])
                 terp_proc._drop_history_frame()
     if len(terp_proc.context_history.maps) % 4 == 0:
@@ -1115,17 +1138,22 @@ def play_game() -> None:
 
 
 def processUSR1(*args, **kwargs) -> None:
-    """Handle the USR1 signal by increasing the debugging verbosity."""
+    """Handle the USR1 signal by cycling through  available debugging verbosity levels."""
     global verbosity
-    verbosity += 1
-    print("\nVerbosity increased to %d" % verbosity)
+    verbosity = (verbosity + 1) % (1 + maximum_verbosity_level)
+    print("\nDebugging verbosity changed to %d" % verbosity)
 
 
 def processUSR2(*args, **kwargs) -> None:
-    """Handle the USR2 signal by decreasing the debugging verbosity."""
-    global verbosity
-    verbosity -= 1
-    print("\nVerbosity decreased to %d" % verbosity)
+    """Handle the USR2 signal saving the current path data as if it were a solution."""
+    print("\nCurrent path is:\n\n" + terp_proc.text_walkthrough)
+
+
+def processSigInt(*args, **kwargs):
+    """When ctrl-C is pushed or SIGINT is otherwise received, exit immediately without
+    waiting for threads to terminate or whatever.
+    """
+    sys.exit(0)                       #FIXME
 
 
 def validate_directory(p: Path, description: str) -> None:
@@ -1205,6 +1233,7 @@ def set_up() -> None:
 
     signal.signal(signal.SIGUSR1, processUSR1)
     signal.signal(signal.SIGUSR2, processUSR2)
+    signal.signal(signal.SIGINT, processSigInt)         # Force immediate exit on
     debug_print("  signal handlers installed!", 2)
 
     empty_save_files()
