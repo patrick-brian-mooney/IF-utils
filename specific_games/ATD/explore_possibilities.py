@@ -71,7 +71,7 @@ dead_ends = 0
 successes = 0
 moves = 0
 script_run_start = datetime.datetime.now()
-maximum_walkthrough_length = 0                  # FIXME: we need to calculate this!
+maximum_walkthrough_length = 0
 
 progress_data = dict()
 
@@ -195,6 +195,13 @@ def only_in_prototype(*pargs) -> bool:
     return 'prototype' in terp_proc.current_room.lower()
 
 
+def only_on_balcony(*pargs) -> bool:
+    """A filter for SMASH WINDOW: there's only one location where it could possibly be
+    useful, so there's only one location where it's allowed.
+    """
+    return 'balcony' in terp_proc.current_room.lower()
+
+
 def not_twice_in_a_row(c: str) -> bool:
     """This function prevents the same command from being issued twice consecutively.
     This is useful for many commands, because it eliminates--well, REDUCES-- the
@@ -207,16 +214,20 @@ def not_twice_in_a_row(c: str) -> bool:
     return (c.strip().strip(string.punctuation).strip().lower() == terp_proc.last_command.strip().strip(string.punctuation).strip().lower())
 
 
-def set_panel_once_before_pushing_button(c: str) -> bool:
+def set_panel_filter(*pargs) -> bool:
     """This filter is for SET PANEL TO [number], a set of commands that have some
-    comparatively complex requirements: 1. Only in the prototype. 2. Once a SET
-    PANEL command has been executed, no others are allowed until after a successful
-    PUSH SILVER BUTTON appears in the transcript (i.e., is not a mistake).
+    comparatively complex requirements: 1. Only in the prototype. 2. Only allowed
+    once a successful FIX PROTOTYPE command has been issued (i.e., appears in the
+    transcript). 3. Once a SET PANEL command has been executed, no others are
+    allowed until after a successful PUSH SILVER BUTTON appears in the transcript
+    (i.e., is not a mistake).
 
     Otherwise, allowing repeated SET PANEL TO commands is equivalent to WAIT.
     """
-    if only_in_prototype(c):
+    if only_in_prototype():
         walkthrough = terp_proc.text_walkthrough.lower().strip()
+        if 'fix prototype' not in walkthrough:
+            return False
         if 'set panel' not in walkthrough:
             return True
         elif 'push silver' in walkthrough:
@@ -256,9 +267,10 @@ def no_exit_when_there_are_synonyms(*pargs) -> bool:
     SOUTH does the same thing. Preventing EXIT in that situation helps to control the
     combinatorial explosion of the game's possibility space.
 
-    This filter is intended for the EXIT and GO OUT commands.   #FIXME: there should be other locations
+    In fact, the only place where EXIT *is* allowed is inside the prototype, because
+    other directions are synonyms in all other locations.
     """
-    if terp_proc.current_room in ['the deutsch laboratory']:
+    if "prototype" not in terp_proc.current_room.strip().lower():
         return False
     return True
 
@@ -311,7 +323,7 @@ def not_after_exiting(c:str) -> bool:
     return (terp_proc.last_command.lower().strip() not in ['exit', 'go out',])
 
 
-def only_after_setting_timer(c:str) -> bool:
+def only_after_setting_timer(*pargs) -> bool:
     """A filter for DROP BOMB: it's only allowed after a SET TIMER command. There's no
     real reason to drop the bomb before setting the timer, because the location
     where the bomb needs to be dropped to be effective is nowhere near a through-
@@ -323,179 +335,200 @@ def only_after_setting_timer(c:str) -> bool:
     return ("set timer to" in terp_proc.text_walkthrough.lower())
 
 
+def only_if_has(c: str, what: str) -> bool:
+    """A filter that only allows a command C if the PC currently has WHAT in her
+    inventory, where WHAT is a string that will be case-insensitively matched to
+    see if it's a partial match for anything in the PC's inventory. This is useful,
+    for instance, to prohibit DROP BATTERY when the PC is not carrying a battery.
+
+    Note that the directly calling code only supplies C, the command; WHAT will have
+    to be partially applied using (for instance) a lambda.
+    """
+    return terp_proc.has(what)
+
+
+def only_in(c:str, where:list) -> bool:
+    """Filter function that returns True iff the PC's current room is specified in
+    WHERE.
+    """
+    for w in where:
+        assert w.lower().strip() in rooms
+    return terp_proc.current_room.lower().strip() in [w.lower().strip() for w in where]
+
+
 # Now that we've defined the filter functions, fill out the command-selection parameters.
 # Sure, this could be done more tersely, and has been in previous versions, but being explicit pays off in clarity.
 all_commands = {
-    "close deutsch lab": not_twice_in_a_row,
-    "close equipment door": not_twice_in_a_row,
-    "drop battery": always_true,
-    "drop bomb": only_after_setting_timer,
-    "enter prototype": not_after_exiting,
-    "examine benches": not_twice_in_a_row,
-    "exit": lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c)),
-    "fix prototype": always_true,
-    "flick switch": always_true,
-    "get all": not_twice_in_a_row,
-    "get battery": not_twice_in_a_row,
-    "get battery from flashlight": not_twice_in_a_row,
-    "get cable": not_twice_in_a_row,
-    "get cable and battery": not_twice_in_a_row,
-    "get crowbar": not_twice_in_a_row,
-    "get flashlight and brass key": not_twice_in_a_row,
-    "get notes": not_twice_in_a_row,
-    "go down": no_pacing_unless_hiding,
-    "go north": no_pacing_unless_hiding,
-    "go in": lambda c: (no_pacing_unless_hiding(c)) and (not_after_exiting(c) if ('deutsch' in terp_proc.current_room.lower()) else always_true(c)),
-    "go northeast": no_pacing_unless_hiding,
-    "go northwest": no_pacing_unless_hiding,
-    "go south": no_pacing_unless_hiding,
-    "go southeast": no_pacing_unless_hiding,
-    "go southwest": no_pacing_unless_hiding,
-    "go up": no_pacing_unless_hiding,
-    "lock deutsch lab": not_twice_in_a_row,
-    "lock equipment door": not_twice_in_a_row,
-    "open automatic door": not_twice_in_a_row,
-    "open deutsch door": not_twice_in_a_row,
-    "push alarm": not_twice_in_a_row,
-    "push basement": not_twice_in_a_row,
-    "push first": not_twice_in_a_row,
-    "push green button": not_twice_in_a_row,
-    "push second": not_twice_in_a_row,
-    "push silver button": not_twice_in_a_row,
-    "put batteries in flashlight": always_true,
-    "put battery in flashlight": always_true,
-    "remove battery from flashlight": always_true,
-    "smash window": always_true,
-    "turn off flashlight": not_twice_in_a_row,
-    "turn off lights": not_twice_in_a_row,
-    "turn on flashlight": not_twice_in_a_row,
-    "turn on lights": not_twice_in_a_row,
-    "unlock equipment door": not_twice_in_a_row,
-    "wait": always_true,
-    "set panel to 5": set_panel_once_before_pushing_button,
-    "set panel to 10": set_panel_once_before_pushing_button,
-    "set panel to 15": set_panel_once_before_pushing_button,
-    "set panel to 20": set_panel_once_before_pushing_button,
-    "set panel to 25": set_panel_once_before_pushing_button,
-    "set panel to 30": set_panel_once_before_pushing_button,
-    "set panel to 35": set_panel_once_before_pushing_button,
-    "set panel to 40": set_panel_once_before_pushing_button,
-    "set panel to 45": set_panel_once_before_pushing_button,
-    "set panel to 50": set_panel_once_before_pushing_button,
-    "set panel to 55": set_panel_once_before_pushing_button,
-    "set panel to 60": set_panel_once_before_pushing_button,
-    "set panel to 65": set_panel_once_before_pushing_button,
-    "set panel to 70": set_panel_once_before_pushing_button,
-    "set panel to 75": set_panel_once_before_pushing_button,
-    "set panel to 80": set_panel_once_before_pushing_button,
-    "set panel to 85": set_panel_once_before_pushing_button,
-    "set panel to 90": set_panel_once_before_pushing_button,
-    "set panel to 95": set_panel_once_before_pushing_button,
-    "set panel to 100": set_panel_once_before_pushing_button,
-    "set panel to 105": set_panel_once_before_pushing_button,
-    "set panel to 110": set_panel_once_before_pushing_button,
-    "set panel to 115": set_panel_once_before_pushing_button,
-    "set panel to 120": set_panel_once_before_pushing_button,
-    "set panel to 125": set_panel_once_before_pushing_button,
-    "set panel to 130": set_panel_once_before_pushing_button,
-    "set panel to 135": set_panel_once_before_pushing_button,
-    "set panel to 140": set_panel_once_before_pushing_button,
-    "set panel to 145": set_panel_once_before_pushing_button,
-    "set panel to 150": set_panel_once_before_pushing_button,
-    "set panel to 155": set_panel_once_before_pushing_button,
-    "set panel to 160": set_panel_once_before_pushing_button,
-    "set panel to 165": set_panel_once_before_pushing_button,
-    "set panel to 170": set_panel_once_before_pushing_button,
-    "set panel to 175": set_panel_once_before_pushing_button,
-    "set panel to 180": set_panel_once_before_pushing_button,
-    "set panel to 185": set_panel_once_before_pushing_button,
-    "set panel to 190": set_panel_once_before_pushing_button,
-    "set panel to 195": set_panel_once_before_pushing_button,
-    "set panel to 200": set_panel_once_before_pushing_button,
-    "set panel to 205": set_panel_once_before_pushing_button,
-    "set panel to 210": set_panel_once_before_pushing_button,
-    "set panel to 215": set_panel_once_before_pushing_button,
-    "set panel to 220": set_panel_once_before_pushing_button,
-    "set panel to 225": set_panel_once_before_pushing_button,
-    "set panel to 230": set_panel_once_before_pushing_button,
-    "set panel to 235": set_panel_once_before_pushing_button,
-    "set panel to 240": set_panel_once_before_pushing_button,
-    "set panel to 245": set_panel_once_before_pushing_button,
-    "set panel to 250": set_panel_once_before_pushing_button,
-    "set panel to 255": set_panel_once_before_pushing_button,
-    "set panel to 260": set_panel_once_before_pushing_button,
-    "set panel to 265": set_panel_once_before_pushing_button,
-    "set panel to 270": set_panel_once_before_pushing_button,
-    "set panel to 275": set_panel_once_before_pushing_button,
-    "set panel to 280": set_panel_once_before_pushing_button,
-    "set panel to 285": set_panel_once_before_pushing_button,
-    "set panel to 290": set_panel_once_before_pushing_button,
-    "set panel to 295": set_panel_once_before_pushing_button,
-    "set panel to 300": set_panel_once_before_pushing_button,
-    "set panel to 305": set_panel_once_before_pushing_button,
-    "set panel to 310": set_panel_once_before_pushing_button,
-    "set panel to 315": set_panel_once_before_pushing_button,
-    "set panel to 320": set_panel_once_before_pushing_button,
-    "set panel to 325": set_panel_once_before_pushing_button,
-    "set panel to 330": set_panel_once_before_pushing_button,
-    "set panel to 335": set_panel_once_before_pushing_button,
-    "set panel to 340": set_panel_once_before_pushing_button,
-    "set panel to 345": set_panel_once_before_pushing_button,
-    "set panel to 350": set_panel_once_before_pushing_button,
-    "set panel to 355": set_panel_once_before_pushing_button,
-    "set panel to 360": set_panel_once_before_pushing_button,
-    "set panel to 365": set_panel_once_before_pushing_button,
-    "set panel to 370": set_panel_once_before_pushing_button,
-    "set panel to 375": set_panel_once_before_pushing_button,
-    "set panel to 380": set_panel_once_before_pushing_button,
-    "set panel to 385": set_panel_once_before_pushing_button,
-    "set panel to 390": set_panel_once_before_pushing_button,
-    "set panel to 395": set_panel_once_before_pushing_button,
-    "set panel to 400": set_panel_once_before_pushing_button,
-    "set panel to 405": set_panel_once_before_pushing_button,
-    "set panel to 410": set_panel_once_before_pushing_button,
-    "set panel to 415": set_panel_once_before_pushing_button,
-    "set panel to 420": set_panel_once_before_pushing_button,
-    "set panel to 425": set_panel_once_before_pushing_button,
-    "set panel to 430": set_panel_once_before_pushing_button,
-    "set panel to 435": set_panel_once_before_pushing_button,
-    "set panel to 440": set_panel_once_before_pushing_button,
-    "set panel to 445": set_panel_once_before_pushing_button,
-    "set panel to 450": set_panel_once_before_pushing_button,
-    "set panel to 455": set_panel_once_before_pushing_button,
-    "set panel to 460": set_panel_once_before_pushing_button,
-    "set panel to 465": set_panel_once_before_pushing_button,
-    "set panel to 470": set_panel_once_before_pushing_button,
-    "set panel to 475": set_panel_once_before_pushing_button,
-    "set panel to 480": set_panel_once_before_pushing_button,
-    "set panel to 485": set_panel_once_before_pushing_button,
-    "set panel to 490": set_panel_once_before_pushing_button,
-    "set panel to 495": set_panel_once_before_pushing_button,
-    "set panel to 500": set_panel_once_before_pushing_button,
-    "set timer to 5": only_one_timer_command,
-    "set timer to 10": only_one_timer_command,
-    "set timer to 15": only_one_timer_command,
-    "set timer to 20": only_one_timer_command,
-    "set timer to 25": only_one_timer_command,
-    "set timer to 30": only_one_timer_command,
-    "set timer to 35": only_one_timer_command,
-    "set timer to 40": only_one_timer_command,
-    "set timer to 45": only_one_timer_command,
-    "set timer to 50": only_one_timer_command,
-    "set timer to 55": only_one_timer_command,
-    "set timer to 60": only_one_timer_command,
-    "set timer to 65": only_one_timer_command,
-    "set timer to 70": only_one_timer_command,
-    "set timer to 75": only_one_timer_command,
-    "set timer to 80": only_one_timer_command,
-    "set timer to 85": only_one_timer_command,
-    "set timer to 90": only_one_timer_command,
-    "set timer to 95": only_one_timer_command,
-    "set timer to 100": only_one_timer_command,
+    "close deutsch lab":                lambda c: (not_twice_in_a_row(c)) and (only_in(c, ['basement corridor', 'the deutsch laboratory', 'inside the prototype'])),
+    "close equipment door":             lambda c: (not_twice_in_a_row(c)) and (only_in(c, ["basement corridor", "basement equipment room", "first floor corridor", "first floor equipment room", "second floor corridor"])),
+    "drop battery":                     lambda c: only_if_has(c, 'batt'),
+    "drop bomb":                        lambda c: only_after_setting_timer(c) and only_if_has(c, 'explosive'),
+    "enter prototype":                  lambda c: (not_after_exiting(c)) and (only_in(c,['the deutsch laboratory'])),
+    "examine benches":                  not_twice_in_a_row,
+    "exit":                             lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c)),
+    "fix prototype":                    lambda c: (only_if_has(c, 'cable')) and (only_in(c, ['the deutsch laboratory', 'inside the prototype'])),
+    "flick switch":                     lambda c: ("equipment" in terp_proc.current_room.lower().strip()),
+    "get all":                          not_twice_in_a_row,
+    "get battery":                      not_twice_in_a_row,
+    "get battery from flashlight":      lambda c: (not_twice_in_a_row(c)) and (only_if_has(c, 'light')),
+    "get cable":                        lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'cable')),
+                                            # multiple GET saves in-game time
+    "get cable and battery":            lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'cable')),
+    "get crowbar":                      lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'crowbar')),
+    "get flashlight and brass key":     lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'light')) and (not only_if_has('c', 'brass')),
+    "get notes":                        not_twice_in_a_row,
+    "go down":                          no_pacing_unless_hiding,
+    "go north":                         no_pacing_unless_hiding,
+    "go northeast":                     no_pacing_unless_hiding,
+    "go northwest":                     no_pacing_unless_hiding,
+    "go south":                         no_pacing_unless_hiding,
+    "go southeast":                     no_pacing_unless_hiding,
+    "go southwest":                     no_pacing_unless_hiding,
+    "go up":                            no_pacing_unless_hiding,
+    "lock deutsch lab":                 lambda c: not_twice_in_a_row(c) and only_in(c, ['basement corridor', 'the deutsch laboratory']),
+    "lock equipment door":              lambda c: not_twice_in_a_row(c) and (('corridor' in terp_proc.current_room.lower().strip()) or ('equipment' in terp_proc.current_room.lower().strip())),
+    "open automatic door":              not_twice_in_a_row,
+    "open deutsch door":                lambda c: (not_twice_in_a_row(c)) and only_in(c, ['basement corridor', 'the deutsch laboratory']),
+    "push alarm":                       lambda c: (not_twice_in_a_row(c)) and only_in(c, ['foyer']),
+    "push basement":                    lambda c: (not_twice_in_a_row(c)) and only_in(c, ['foyer']),
+    "push first":                       lambda c: (not_twice_in_a_row(c)) and only_in(c, ['foyer']),
+    "push green button":                lambda c: (not_twice_in_a_row(c)) and only_in(c, ['foyer']),
+    "push second":                      lambda c: (not_twice_in_a_row(c)) and only_in(c, ['foyer']),
+    "push silver button":               lambda c: (not_twice_in_a_row(c)) and only_in(c, ['inside the prototype']),
+    "put batteries in flashlight":      lambda c: only_if_has(c, 'light'),
+    "put battery in flashlight":        lambda c: only_if_has(c, 'light'),
+    "remove battery from flashlight":   lambda c: only_if_has(c, 'light'),
+    "smash window":                     only_on_balcony,
+    "turn off flashlight":              lambda c: only_if_has(c, 'light'),
+    "turn off lights":                  lambda c: ('equipment' in terp_proc.current_room.lower().strip()) and not_twice_in_a_row(c),
+    "turn on flashlight":               lambda c: only_if_has(c, 'light'),
+    "turn on lights":                   lambda c: ('equipment' in terp_proc.current_room.lower().strip()) and not_twice_in_a_row(c),
+    "unlock equipment door":            lambda c: not_twice_in_a_row(c) and (('corridor' in terp_proc.current_room.lower().strip()) or ('equipment' in terp_proc.current_room.lower().strip())),
+    "wait":                             always_true,
+    "set panel to 5":                   set_panel_filter,
+    "set panel to 10":                  set_panel_filter,
+    "set panel to 15":                  set_panel_filter,
+    "set panel to 20":                  set_panel_filter,
+    "set panel to 25":                  set_panel_filter,
+    "set panel to 30":                  set_panel_filter,
+    "set panel to 35":                  set_panel_filter,
+    "set panel to 40":                  set_panel_filter,
+    "set panel to 45":                  set_panel_filter,
+    "set panel to 50":                  set_panel_filter,
+    "set panel to 55":                  set_panel_filter,
+    "set panel to 60":                  set_panel_filter,
+    "set panel to 65":                  set_panel_filter,
+    "set panel to 70":                  set_panel_filter,
+    "set panel to 75":                  set_panel_filter,
+    "set panel to 80":                  set_panel_filter,
+    "set panel to 85":                  set_panel_filter,
+    "set panel to 90":                  set_panel_filter,
+    "set panel to 95":                  set_panel_filter,
+    "set panel to 100":                 set_panel_filter,
+    "set panel to 105":                 set_panel_filter,
+    "set panel to 110":                 set_panel_filter,
+    "set panel to 115":                 set_panel_filter,
+    "set panel to 120":                 set_panel_filter,
+    "set panel to 125":                 set_panel_filter,
+    "set panel to 130":                 set_panel_filter,
+    "set panel to 135":                 set_panel_filter,
+    "set panel to 140":                 set_panel_filter,
+    "set panel to 145":                 set_panel_filter,
+    "set panel to 150":                 set_panel_filter,
+    "set panel to 155":                 set_panel_filter,
+    "set panel to 160":                 set_panel_filter,
+    "set panel to 165":                 set_panel_filter,
+    "set panel to 170":                 set_panel_filter,
+    "set panel to 175":                 set_panel_filter,
+    "set panel to 180":                 set_panel_filter,
+    "set panel to 185":                 set_panel_filter,
+    "set panel to 190":                 set_panel_filter,
+    "set panel to 195":                 set_panel_filter,
+    "set panel to 200":                 set_panel_filter,
+    "set panel to 205":                 set_panel_filter,
+    "set panel to 210":                 set_panel_filter,
+    "set panel to 215":                 set_panel_filter,
+    "set panel to 220":                 set_panel_filter,
+    "set panel to 225":                 set_panel_filter,
+    "set panel to 230":                 set_panel_filter,
+    "set panel to 235":                 set_panel_filter,
+    "set panel to 240":                 set_panel_filter,
+    "set panel to 245":                 set_panel_filter,
+    "set panel to 250":                 set_panel_filter,
+    "set panel to 255":                 set_panel_filter,
+    "set panel to 260":                 set_panel_filter,
+    "set panel to 265":                 set_panel_filter,
+    "set panel to 270":                 set_panel_filter,
+    "set panel to 275":                 set_panel_filter,
+    "set panel to 280":                 set_panel_filter,
+    "set panel to 285":                 set_panel_filter,
+    "set panel to 290":                 set_panel_filter,
+    "set panel to 295":                 set_panel_filter,
+    "set panel to 300":                 set_panel_filter,
+    "set panel to 305":                 set_panel_filter,
+    "set panel to 310":                 set_panel_filter,
+    "set panel to 315":                 set_panel_filter,
+    "set panel to 320":                 set_panel_filter,
+    "set panel to 325":                 set_panel_filter,
+    "set panel to 330":                 set_panel_filter,
+    "set panel to 335":                 set_panel_filter,
+    "set panel to 340":                 set_panel_filter,
+    "set panel to 345":                 set_panel_filter,
+    "set panel to 350":                 set_panel_filter,
+    "set panel to 355":                 set_panel_filter,
+    "set panel to 360":                 set_panel_filter,
+    "set panel to 365":                 set_panel_filter,
+    "set panel to 370":                 set_panel_filter,
+    "set panel to 375":                 set_panel_filter,
+    "set panel to 380":                 set_panel_filter,
+    "set panel to 385":                 set_panel_filter,
+    "set panel to 390":                 set_panel_filter,
+    "set panel to 395":                 set_panel_filter,
+    "set panel to 400":                 set_panel_filter,
+    "set panel to 405":                 set_panel_filter,
+    "set panel to 410":                 set_panel_filter,
+    "set panel to 415":                 set_panel_filter,
+    "set panel to 420":                 set_panel_filter,
+    "set panel to 425":                 set_panel_filter,
+    "set panel to 430":                 set_panel_filter,
+    "set panel to 435":                 set_panel_filter,
+    "set panel to 440":                 set_panel_filter,
+    "set panel to 445":                 set_panel_filter,
+    "set panel to 450":                 set_panel_filter,
+    "set panel to 455":                 set_panel_filter,
+    "set panel to 460":                 set_panel_filter,
+    "set panel to 465":                 set_panel_filter,
+    "set panel to 470":                 set_panel_filter,
+    "set panel to 475":                 set_panel_filter,
+    "set panel to 480":                 set_panel_filter,
+    "set panel to 485":                 set_panel_filter,
+    "set panel to 490":                 set_panel_filter,
+    "set panel to 495":                 set_panel_filter,
+    "set panel to 500":                 set_panel_filter,
+    "set timer to 5":                   only_one_timer_command,
+    "set timer to 10":                  only_one_timer_command,
+    "set timer to 15":                  only_one_timer_command,
+    "set timer to 20":                  only_one_timer_command,
+    "set timer to 25":                  only_one_timer_command,
+    "set timer to 30":                  only_one_timer_command,
+    "set timer to 35":                  only_one_timer_command,
+    "set timer to 40":                  only_one_timer_command,
+    "set timer to 45":                  only_one_timer_command,
+    "set timer to 50":                  only_one_timer_command,
+    "set timer to 55":                  only_one_timer_command,
+    "set timer to 60":                  only_one_timer_command,
+    "set timer to 65":                  only_one_timer_command,
+    "set timer to 70":                  only_one_timer_command,
+    "set timer to 75":                  only_one_timer_command,
+    "set timer to 80":                  only_one_timer_command,
+    "set timer to 85":                  only_one_timer_command,
+    "set timer to 90":                  only_one_timer_command,
+    "set timer to 95":                  only_one_timer_command,
+    "set timer to 100":                 only_one_timer_command,
 }
 
 
-# Now that we've specified the data and some basic handling methods ... some utility routines first.
+# Now that we've specified the data and some basic handling methods ... some utility routines.
 def debug_print(what, min_level=1) -> None:
     """Print WHAT, if the global VERBOSITY is at least MIN_LEVEL."""
     if verbosity >= min_level:
@@ -777,7 +810,7 @@ class TerpConnection(object):
         return self.context_history['command'] if ('command' in self.context_history) else None
 
     @property
-    def peek_at_inventory(self) -> str:
+    def peek_at_inventory(self) -> list:
         """Returns what the TerpConnection thinks is the current inventory. Note that this
         does not actually execute an INVENTORY command, which is in any case executed
         automatically at every turn; it just returns the result of the last INVENTORY
@@ -792,6 +825,22 @@ class TerpConnection(object):
     def _all_checkpoints(self) -> list:
         """Convenience function to get a list of all checkpoints currently tracked by the TerpConnection."""
         return [frame['checkpoint'] for frame in self.context_history.maps if 'checkpoint' in frame]
+
+    def has(self, what: str) -> bool:
+        """Returns True if the PC currently has WHAT in her inventory, False otherwise.
+        WHAT is a string that is compared case-insensitively to see if it's a partial
+        match for anything in the PC's inventory. So, has('batt') returns True if the
+        PC is carrying "a battery" or "two batteries" or "a base ball batt".
+
+        Does not actually issue an in-game INVENTORY command; just peeks at what the
+        result of the last one is.
+        """
+        what = what.lower().strip()
+        inventory = [i.lower().strip() for i in self.peek_at_inventory]
+        for item in inventory:
+            if what in item:
+                return True
+        return False
 
     def create_progress_checkpoint(self) -> None:
         """Update the dictionary that keeps track of which possible branches of the problem
