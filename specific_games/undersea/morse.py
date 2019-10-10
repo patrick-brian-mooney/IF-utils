@@ -16,8 +16,8 @@ from pathlib import Path
 
 
 # Unique signal objects for Morse code bits
-DOT = "dot"
-DASH = "dash"
+DOT = object()
+DASH = object()
 
 # Morse Code dictionary provided by the game, translated into unique signal objects
 morse = {(DOT, DASH): 'A',
@@ -50,6 +50,7 @@ morse = {(DOT, DASH): 'A',
 
 
 def is_upper(what:str) -> bool:
+    """Convenience function: is WHAT uppercase, in Python's understanding?"""
     return what.isupper()
 
 
