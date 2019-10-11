@@ -7,8 +7,5 @@ A script to hack at the solution space in <span class="vcard"><span class="vcard
 ## `NBM/`
 Some scrips to brute-force some of the mazes in (beta version 1.62 of) <span class="vcard"><span class="fn">Greg Boettcher</span>'s <a class="url" rel="muse" href="https://gregboettcher.com/mazes/">Nothing But Mazes</a></span>.
 
-## `undersea/`
-Script to help decode encoded information in Heike Borchers's *Under the Sea*, a game from IFComp 2019.
-
 
 <footer>This file last updated 17 Sept 2019.</footer>
