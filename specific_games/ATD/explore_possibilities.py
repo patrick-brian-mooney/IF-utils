@@ -63,7 +63,7 @@ save_file_directory = working_directory / 'saves'
 successful_paths_directory = working_directory / 'successful_paths'
 logs_directory = working_directory / 'logs'
 
-commands_file = base_directory / 'commands'
+commands_file = base_directory / 'commands'         #FIXME: do these two even still exist?
 rooms_file = base_directory / 'rooms.json'
 
 # Global statistics
@@ -356,6 +356,14 @@ def only_in(c:str, where:list) -> bool:
     return terp_proc.current_room.lower().strip() in [w.lower().strip() for w in where]
 
 
+def only_after_fixing_prototype(*pargs) -> bool:
+    """Filter function that makes a command available only once the prototype has been
+    fixed. We detect this by checking whether FIX PROTOTYPE appears in the text
+    walkthrough, i.e. has been successfully executed.
+    """
+    return 'fix prototype' in terp_proc.text_walkthrough.lower()
+
+
 # Now that we've defined the filter functions, fill out the command-selection parameters.
 # Sure, this could be done more tersely, and has been in previous versions, but being explicit pays off in clarity.
 all_commands = {
@@ -363,7 +371,7 @@ all_commands = {
     "close equipment door":             lambda c: (not_twice_in_a_row(c)) and (only_in(c, ["basement corridor", "basement equipment room", "first floor corridor", "first floor equipment room", "second floor corridor"])),
     "drop battery":                     lambda c: only_if_has(c, 'batt'),
     "drop bomb":                        lambda c: only_after_setting_timer(c) and only_if_has(c, 'explosive'),
-    "enter prototype":                  lambda c: (not_after_exiting(c)) and (only_in(c,['the deutsch laboratory'])),
+    "enter prototype":                  lambda c: (only_after_fixing_prototype(c)) and (not_after_exiting(c)) and (only_in(c, ['the deutsch laboratory'])),
     "examine benches":                  not_twice_in_a_row,
     "exit":                             lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c)),
     "fix prototype":                    lambda c: (only_if_has(c, 'cable')) and (only_in(c, ['the deutsch laboratory', 'inside the prototype'])),
@@ -833,7 +841,8 @@ class TerpConnection(object):
         PC is carrying "a battery" or "two batteries" or "a base ball batt".
 
         Does not actually issue an in-game INVENTORY command; just peeks at what the
-        result of the last one is.
+        result of the last one was. Since INVENTORY commands are issued every turn, then
+        undone, this should be accurate.
         """
         what = what.lower().strip()
         inventory = [i.lower().strip() for i in self.peek_at_inventory]
@@ -857,7 +866,7 @@ class TerpConnection(object):
         debug_print("(saving algorithm progress data.)", 2)
         clean_progress_data()
         with bz2.open(progress_checkpoint_file, mode='wt') as pc_file:
-            json.dump(progress_data, pc_file, default=str, indent=2, sort_keys=True)
+            json.dump(progress_data, pc_file, default=str, indent=2)
 
     def _pass_command_in(self, command:str) -> None:
         """Passes a command in to the 'terp. This is a low-level atomic-type function that
@@ -873,8 +882,8 @@ class TerpConnection(object):
     def process_command_and_return_output(self, command:str, be_patient:bool=True) -> str:
         """A convenience wrapper: passes a command into the 'terp, and returns whatever text
         the 'terp barfs back up. Does minimal processing on the command passed in -- it
-        adds a newline (or rathher, a newline is added by a function that is called by
-        this function -- and no processing on the output text. (All text is processed
+        adds a newline (or rather, a newline is added by a function that is called by
+        this function) -- and no processing on the output text. (All text is processed
         using the system default encoding because we're in text mode, or "universal
         newlines" mode, if you prefer. Heck, Python 3.6 does so prefer.) In particular,
         it performs no EVALUATION of the text's output. leaving that to other code.
@@ -1122,9 +1131,10 @@ def make_moves(depth=0) -> None:
     running to interpret the game's output.
 
     Leave the DEPTH parameter set to zero when calling the function to start playing
-    the game; the function uses this parameter internally to track how deep we are.
-    This is occasionally useful for debugging purposes, and has an effect on the
-    visual printing of each step that occurs at debugging verbosity levels 3+.
+    the game; the function uses this parameter internally to track how many commands
+    deep we are. This is occasionally useful for debugging purposes, and has an
+    effect on the visual printing of each step that occurs at debugging verbosity
+    levels 3+.
     """
     global successes, dead_ends, moves, maximum_walkthrough_length
 
@@ -1194,8 +1204,10 @@ def processUSR1(*args, **kwargs) -> None:
 
 
 def processUSR2(*args, **kwargs) -> None:
-    """Handle the USR2 signal saving the current path data as if it were a solution."""
-    print("\nCurrent path is:\n\n" + terp_proc.text_walkthrough)
+    """Handle the USR2 signal printing the current progress, then pausing for a moment."""
+    print("\nCurrent path is:\n" + terp_proc.text_walkthrough)
+    print("\n\n")
+    time.sleep(2)
 
 
 def processSigInt(*args, **kwargs):
@@ -1285,9 +1297,9 @@ def set_up() -> None:
     signal.signal(signal.SIGINT, processSigInt)         # Force immediate exit on
     debug_print("  signal handlers installed!", 2)
 
-    empty_save_files()
+    empty_save_files()                                  # Get rid of leftover save files from previous runs -- we regenerate for each step that gets executed along the way, anyway.
 
-    if len(sys.argv) >= 2:
+    if len(sys.argv) > 1:
         interpret_command_line()
     else:
         debug_print("  no command-line arguments!", 2)
