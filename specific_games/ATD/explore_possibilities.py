@@ -57,7 +57,7 @@ story_file_location = Path('/home/patrick/games/IF/by author/Ord, Toby/as half s
 
 base_directory = Path(os.path.dirname(__file__)).resolve()
 working_directory = base_directory / 'working'
-progress_checkpoint_file = working_directory / 'progress.json.bz2'
+progress_checkpoint_file = working_directory / 'progress.json'
 
 save_file_directory = working_directory / 'saves'
 successful_paths_directory = working_directory / 'successful_paths'
@@ -153,10 +153,15 @@ rooms = {
   "upstairs landing": {"hideable": True},
 }
 
-# These next are routines that determine whether a command is available as a guess at a particular point in time.
-# Each function is passed one parameter, the current command being attempted (the function must look at the
-# global 'terp state for anything else) and returns a boolean value: True if the command is available right now, or
-# False otherwise. Many commands have no real need to be limited and so are mapped to always_true().
+# These next are routines that determine whether a command is available as a guess that the code can take at a
+# particular point in time. Each function is passed one parameter, which is the current command being attempted (the
+# function needs to look at the global 'terp state if it wants to know anything else) and returns a boolean value: True
+# if the command is  available right now, or False otherwise. Some commands have no real need to be limited and so
+# are mapped to always_true().
+
+# Experience has shown that it's faster to limit commands via a filter function or two instead of allowing the 'terp
+# to try it and then having to restore from a save file. However, branches should of course only be pruned in advance
+# when it's possible to be ABSOLUTELY SURE that they're not a viale way to move forward.
 
 # Functions that have no need to look at the current command to know if their action is available can just consume
 # it with *pargs syntax.
@@ -165,6 +170,13 @@ def always_true(*pargs) -> bool:
     the command is available, this function just returns True.
     """
     return True
+
+
+def only_once(c:str) -> bool:
+    """Restrict this command from being used if it's already been used. Initially
+    written for EXAMINE BENCHES.
+    """
+    return c.lower() not in terp_proc.text_walkthrough.lower()
 
 
 def only_one_timer_command(*pargs) -> bool:
@@ -211,7 +223,7 @@ def not_twice_in_a_row(c: str) -> bool:
     Note that "same command" in the paragraph above means "the EXACT SAME command,
     character for character," not "a similar command."
     """
-    return (c.strip().strip(string.punctuation).strip().lower() == terp_proc.last_command.strip().strip(string.punctuation).strip().lower())
+    return (c.strip().strip(string.punctuation).strip().lower() != terp_proc.last_command.strip().strip(string.punctuation).strip().lower())
 
 
 def set_panel_filter(*pargs) -> bool:
@@ -281,9 +293,9 @@ def no_pacing_unless_hiding(c: str) -> bool:
     it does, to be more specific, is to nip off the option to leave a "hideable
     location" without doing something first -- "do something" here DOES include
     waiting, because we may be (may wind up being) intending to wait for pastPC or
-    futurePC to pass by outside. This function does not check for commands that
-    result in movement but that do not start with GO: synonyms and movement-as-a-
-    side-effect are not considered here.
+    futurePC to pass nearby. This function does not check for commands that result
+    in movement but that do not start with GO: synonyms and movement-as-a- side-
+    effect are not considered here.
 
     This filter is intended for GO [direction] commands. However, so that it can
     also be used with EXIT, it checks first to see whether the first word of the
@@ -312,6 +324,64 @@ def no_pacing_unless_hiding(c: str) -> bool:
     if direction_inverses[current_direction] == previous_direction:
         return rooms[terp_proc.current_room]['hideable']
     return True
+
+
+def down_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ["upstairs landing", "foyer", ]
+
+
+def north_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ["second floor corridor", "upstairs landing", "foyer",
+                                              "basement corridor", "basement landing"]
+
+
+def northeast_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ["first floor corridor", "basement corridor", ]
+
+
+def northwest_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ["conference room", ]
+
+
+def south_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ['balcony', "second floor corridor", "first floor corridor",
+                                                      "foyer", "the deutsch laboratory", "basement corridor", ]
+
+
+def southeast_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ['balcony', ]
+
+
+def southwest_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ["first floor equipment room", "basement equipment room", ]
+
+
+def up_filter(*pargs) -> bool:
+    """A filter function for a direction, allowing the direction only to be tried in
+    rooms that have, or might have, exits in that direction.
+    """
+    return terp_proc.current_room.lower().strip() in ["foyer", "basement landing", ]
 
 
 def not_after_exiting(c:str) -> bool:
@@ -370,29 +440,29 @@ all_commands = {
     "close deutsch lab":                lambda c: (not_twice_in_a_row(c)) and (only_in(c, ['basement corridor', 'the deutsch laboratory', 'inside the prototype'])),
     "close equipment door":             lambda c: (not_twice_in_a_row(c)) and (only_in(c, ["basement corridor", "basement equipment room", "first floor corridor", "first floor equipment room", "second floor corridor"])),
     "drop battery":                     lambda c: only_if_has(c, 'batt'),
-    "drop bomb":                        lambda c: only_after_setting_timer(c) and only_if_has(c, 'explosive'),
+    "drop bomb":                        lambda c: only_after_setting_timer(c) and only_if_has(c, 'explosive') and only_once(c),
     "enter prototype":                  lambda c: (only_after_fixing_prototype(c)) and (not_after_exiting(c)) and (only_in(c, ['the deutsch laboratory'])),
-    "examine benches":                  not_twice_in_a_row,
+    "examine benches":                  only_once,
     "exit":                             lambda c: (must_do_something_before_exiting_prototype(c)) and (no_exit_when_there_are_synonyms(c)),
     "fix prototype":                    lambda c: (only_if_has(c, 'cable')) and (only_in(c, ['the deutsch laboratory', 'inside the prototype'])),
     "flick switch":                     lambda c: ("equipment" in terp_proc.current_room.lower().strip()),
     "get all":                          not_twice_in_a_row,
-    "get battery":                      not_twice_in_a_row,
+    "get battery":                      lambda c: (not_twice_in_a_row(c) and ('batt' in terp_proc.context_history['output'])),
     "get battery from flashlight":      lambda c: (not_twice_in_a_row(c)) and (only_if_has(c, 'light')),
-    "get cable":                        lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'cable')),
+    "get cable":                        lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'cable') and ('cable' in terp_proc.context_history['output'])),
                                             # multiple GET saves in-game time
-    "get cable and battery":            lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'cable')),
-    "get crowbar":                      lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'crowbar')),
+    "get cable and battery":            lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'cable') and ('cable' in terp_proc.context_history['output'])),
+    "get crowbar":                      lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'crowbar') and ('crow' in terp_proc.context_history['output'])),
     "get flashlight and brass key":     lambda c: (not_twice_in_a_row(c)) and (not only_if_has(c, 'light')) and (not only_if_has('c', 'brass')),
-    "get notes":                        not_twice_in_a_row,
-    "go down":                          no_pacing_unless_hiding,
-    "go north":                         no_pacing_unless_hiding,
-    "go northeast":                     no_pacing_unless_hiding,
-    "go northwest":                     no_pacing_unless_hiding,
-    "go south":                         no_pacing_unless_hiding,
-    "go southeast":                     no_pacing_unless_hiding,
-    "go southwest":                     no_pacing_unless_hiding,
-    "go up":                            no_pacing_unless_hiding,
+    "get notes":                        lambda c: (not_twice_in_a_row(c) and ('notes' in terp_proc.context_history['output'])),
+    "go down":                          lambda c: (down_filter(c)) and no_pacing_unless_hiding(c),
+    "go north":                         lambda c: (north_filter(c)) and no_pacing_unless_hiding(c),
+    "go northeast":                     lambda c: (northeast_filter(c)) and no_pacing_unless_hiding(c),
+    "go northwest":                     lambda c: (northwest_filter(c)) and no_pacing_unless_hiding(c),
+    "go south":                         lambda c: (south_filter(c)) and no_pacing_unless_hiding(c),
+    "go southeast":                     lambda c: (southeast_filter(c)) and no_pacing_unless_hiding(c),
+    "go southwest":                     lambda c: (southwest_filter(c)) and no_pacing_unless_hiding(c),
+    "go up":                            lambda c: (up_filter(c)) and no_pacing_unless_hiding(c),
     "lock deutsch lab":                 lambda c: not_twice_in_a_row(c) and only_in(c, ['basement corridor', 'the deutsch laboratory']),
     "lock equipment door":              lambda c: not_twice_in_a_row(c) and (('corridor' in terp_proc.current_room.lower().strip()) or ('equipment' in terp_proc.current_room.lower().strip())),
     "open automatic door":              not_twice_in_a_row,
@@ -617,7 +687,7 @@ class NonBlockingStreamReader(object):
     """Wrapper for subprocess.Popen's stdout and stderr streams, so that we can read
     from them without having to worry about blocking.
 
-    Based extensively on Eyal Arubas's solution to the problem at
+    Draws heavily from Eyal Arubas's solution to the problem at
     http://eyalarubas.com/python-subproc-nonblock.html.
     """
     def __init__(self, stream) -> None:
@@ -746,11 +816,9 @@ class TerpConnection(object):
                 else:
                     time.sleep(sleep_time)
                     sleep_time *= 1.48          # Wait longer and longer for data from the 'terp.
-                    if i > 5:
-                        pass                    # Breakpoint!
             if not ret:
                 document_problem("no data", data={'ERROR': "unable to get any data at all from the 'terp, even after being patient!"})
-        return ret
+        return ret.lstrip().lstrip('>').lstrip()
 
     def _add_context_to_history(self, context: dict) -> None:
         """Adds the context to the front of the context-history chain, taking care only
@@ -780,6 +848,15 @@ class TerpConnection(object):
         """
         debug_print('(re-reading last output)', 4)
         return self.context_history['output']
+
+    @property
+    def reconstruct_transcript(self) -> str:
+        """Reconstruct a walkthrough to the current state from the context frames stored in
+        the TerpConnection. Note that this may not be identical to the transcript
+        actually kept by the program; that text is processed before the original text is
+        thrown away. This is a reconstruction, though it should be a fairly close one.
+        """
+        return '\n\n'.join(reversed(['> ' + frame['command'] + '\n\n' + frame['output'] for frame in self.context_history.maps]))
 
     @property
     def list_walkthrough(self) -> list:
@@ -865,7 +942,7 @@ class TerpConnection(object):
         }
         debug_print("(saving algorithm progress data.)", 2)
         clean_progress_data()
-        with bz2.open(progress_checkpoint_file, mode='wt') as pc_file:
+        with open(progress_checkpoint_file, mode='wt') as pc_file:
             json.dump(progress_data, pc_file, default=str, indent=2)
 
     def _pass_command_in(self, command:str) -> None:
@@ -1104,13 +1181,12 @@ def record_solution() -> None:
 
 
 def make_moves(depth=0) -> None:
-    """Try a move. See if it loses. If not, see if it was useless. If either is true,
-    just undo it and move on to the next command: there's no point in continuing if
-    either is the case. ("Useless" here means that the 'terp signaled back to us
-    that it was a mistake in some sense; we then assume that it did nothing more
-    than, perhaps, be a synonym for WAIT.)
+    """Try a move. See if it loses. If not, see if it was useless ("a mistake", "a
+    synonym for WAIT"). If either is true, just undo it and move on to the next
+    command: there's no point in continuing if either is the case.
 
-    Otherwise, check to see if we won. If we did, document the fact and move along.
+    Otherwise, check to see if we won. If we did, document the fact and move along
+    to trying other moves to see how they do.
 
     If we didn't win, lose, or get told we made a mistake, the function calls itself
     again to make another set of moves. Along the way, it does the record-keeping
@@ -1124,7 +1200,7 @@ def make_moves(depth=0) -> None:
     or examined individually to see how the state has changed. Storing a "successful
     path" record involves storing each frame sequentially in a JSON file.
     Reconstructing the 'command' fields of each frame in the proper (i.e., reversed)
-    order produces a walkthrough to the current path.
+    order produces a walkthrough for the path in question.
 
     This function also causes in-game "save" checkpoints to be created for each
     frame automatically, as a side effect that occurs when evaluate_context() is
@@ -1211,10 +1287,16 @@ def processUSR2(*args, **kwargs) -> None:
 
 
 def processSigInt(*args, **kwargs):
-    """When ctrl-C is pushed or SIGINT is otherwise received, exit immediately without
-    waiting for threads to terminate or whatever.
+    """When ctrl-C is pushed or SIGINT is otherwise received, clean up gracefully.
     """
-    sys.exit(0)                       #FIXME
+    try:
+        print("Caught Ctrl-C or other SIGINT; cleaning up ...")
+        terp_proc._reader._quit = True
+        time.sleep(2)
+    except NameError:           # If we're getting here without having set everything up, then just bail.
+        pass
+    print()
+    sys.exit(0)
 
 
 def validate_directory(p: Path, description: str) -> None:
@@ -1275,7 +1357,7 @@ def load_progress_data() -> None:
     global dead_ends, successes, script_run_start, moves, maximum_walkthrough_length
     global progress_data
     try:
-        with bz2.open(progress_checkpoint_file, mode='rt') as pc_file:
+        with open(progress_checkpoint_file, mode='rt') as pc_file:
             progress_data = json.load(pc_file)
             script_run_start = datetime.datetime.now() - datetime.timedelta(seconds=max([t['time'] for t in progress_data.values()]))
             dead_ends = max([t['dead ends'] for t in progress_data.values()])
