@@ -145,9 +145,9 @@ def is_redundant_strand(which_path: str) -> bool:
     [c1, c2, c3, c4, c5] has been checkpointed, we need not checkpoint any of the
     more specific checkpoints [c1, c2, c3, c4, c5, c6, ...], because we've already
     determined that they've been explored fully by checkpointing the higher-order
-    (i.e., shorter) path as completely explored. Despite this fact, the dicxtionary
+    (i.e., shorter) path as completely explored. Despite this fact, the dictionary
     intentionally retains all strands of length 8 or less, even if they are
-    redundant so that it has a record of higher-order time-elapsed data.
+    redundant, so that it has a record of higher-order time-elapsed data.
 
     If WHICH_PATH is exactly equal to a key in the global EXPLORED_PATHS, this is
     not considered a match on its own: True is returned only if the path is also
@@ -266,7 +266,8 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
         if str(path_so_far[:i]) in explored_paths:
             return
 
-    # Detect early: are we going to force a save at this level? Either because we caught -USR2 or because it's been a long time?
+    # Detect early: are we going to force a save at this level? Either because we caught USR2 or because it's been a long time?
+    # Detect early: are we going to force a save at this level? Either because we caught USR2 or because it's been a long time?
     if ((datetime.datetime.now() - last_save_time).total_seconds() > save_interval) or force_save_after_next_node:
         force_save = True                               # Mark that we're going to save when we've finished exploring all paths that start from here.
         force_save_after_next_node = False
@@ -291,7 +292,8 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
     else:
         dead_end_paths += 1
         if dead_end_paths % 1000000 == 0:
-            print('  (%d million dead-end paths so far, in %.2f hours)' % (dead_end_paths / 1000000, time_so_far()/3600))
+            how_long = time_so_far()/3600
+            print('  (%.3f billion dead-end paths so far, in %.2f hours [or %.3f days])' % (dead_end_paths / 1000000000, how_long, how_long/24))
 
     if (len(path_so_far) <= path_length_to_track) and (str(path_so_far) not in explored_paths):                      #
         # Document we've finished this path, if it's at most the right length.
@@ -340,7 +342,7 @@ def processUSR2(*args, **kwargs) -> None:
 
     In point of fact, we don't save the current status here. We merely set a global
     flag that will cause the current status to be saved when the current node,
-    whereever that happens to be when the signal is caught, is completely evaluated.
+    wherever that happens to be when the signal is caught, is completely evaluated.
     This involves solve_maze() recursively calling itself more times, perhaps many
     more, though usually the current status winds up being saved relatively quickly,
     because the algorithm actually spends most of its time tracing dead-ends. There
@@ -376,4 +378,3 @@ if __name__ == "__main__":
     solve_maze()
     print('\n\nDONE! There were %d solutions and %d dead ends found.' % (successful_paths, dead_end_paths))
     print('Exploring the map took %.3f hours.' % (time_so_far()/3600))
-
