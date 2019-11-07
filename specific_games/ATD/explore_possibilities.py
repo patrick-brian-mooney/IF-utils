@@ -294,13 +294,13 @@ def no_pacing_unless_hiding(c: str) -> bool:
     location" without doing something first -- "do something" here DOES include
     waiting, because we may be (may wind up being) intending to wait for pastPC or
     futurePC to pass nearby. This function does not check for commands that result
-    in movement but that do not start with GO: synonyms and movement-as-a- side-
+    in movement but that do not start with GO: synonyms and movement-as-a-side-
     effect are not considered here.
 
     This filter is intended for GO [direction] commands. However, so that it can
     also be used with EXIT, it checks first to see whether the first word of the
     command we're checking is GO and, if not returns True automatically: it doesn't
-    prevent the execution of non-GO commands.
+    prevent the execution of non-GO commands, not even EXIT.
 
     Note that this function prohibits "one-step" but not "multi-step" pacing, which
     is harder to detect (but drives less of a combinatorial explosion anyway, due to
@@ -606,7 +606,7 @@ all_commands = {
 }
 
 
-# Now that we've specified the data and some basic handling methods ... some utility routines.
+# Now that we've specified the data and some basic handling methods ... here are some utility routines.
 def debug_print(what, min_level=1) -> None:
     """Print WHAT, if the global VERBOSITY is at least MIN_LEVEL."""
     if verbosity >= min_level:
@@ -788,14 +788,15 @@ class TerpConnection(object):
         ret += " >"
         return ret
 
-    def _clean_up(self):        # FIXME: this is currently unused! Nothing calls it!
+    def _clean_up(self):
         """Politely close down the connection to the 'terp. Store None in its wrapped
         objects to force a crash if we keep trying to work with it.
         """
         debug_print("Cleaning up the 'terp connection.", 2)
-        self._reader._quit = True
+        self.QUIT()
         self._proc.stdin.close()
         self._proc.terminate()
+        self._reader._quit = True
         self._proc, self._reader = None, None
 
     def _get_output(self, retry:bool=True) -> str:
@@ -1005,6 +1006,21 @@ class TerpConnection(object):
         else:
             return False
 
+    def _get_inventory(self) -> list:
+        """Executes an INVENTORY command and undoes it, then interprets the results of
+        the command.
+        """
+        debug_print("(getting PC inventory)", 4)
+        inventory_text = self.process_command_and_return_output('inventory')
+        if not self.UNDO():
+            debug_print("Warning! Unable to undo INVENTORY command.", 2)
+        ret = list([l.strip() for l in inventory_text.split('\n') if (l.strip() and not l.strip().strip('>').lower().startswith("you're carrying:"))])
+        try:
+            ret = ret[1 + list([l.lower().strip() for l in ret]).index('you are carrying:'):]
+        except (ValueError, IndexError) as errr:
+            document_problem('cannot_get_inventory', data={'inventory_text': inventory_text, 'note': "'you are carrying:' not in output text!"})
+        return ret
+
     def restore_terp_state(self) -> None:
         """Restores the 'terp to the previous state. Does not handle housekeeping for any
         other aspect of the TerpConnection; notably, does not drop the context_history
@@ -1049,26 +1065,30 @@ class TerpConnection(object):
         _ = self.process_command_and_return_output('script', be_patient=False)
         _ = self.process_command_and_return_output(os.path.relpath(p, base_directory))
 
-    def _get_inventory(self) -> list:
-        """Executes an INVENTORY command and undoes it, then interprets the results of
-        the command.
-        """
-        debug_print("(getting PC inventory)", 4)
-        inventory_text = self.process_command_and_return_output('inventory')
-        if not self.UNDO():
-            debug_print("Warning! Unable to undo INVENTORY command.", 2)
-        ret = list([l.strip() for l in inventory_text.split('\n') if (l.strip() and not l.strip().strip('>').lower().startswith("you're carrying:"))])
-        try:
-            ret = ret[1 + list([l.lower().strip() for l in ret]).index('you are carrying:'):]
-        except (ValueError, IndexError) as errr:
-            document_problem('cannot_get_inventory', data={'inventory_text': inventory_text, 'note': "'you are carrying:' not in output text!"})
-        return ret
-
     def INVENTORY(self) -> None:
         """Convenience wrapper: print the current inventory to the console, then undo the
         in-game action.
         """
         print(self._get_inventory())
+
+    def Y(self, be_patient=False) -> None:
+        """Sends a Y ("yes") command to the 'terp."""
+        _ = self.process_command_and_return_output('Y', be_patient=be_patient)
+
+    def QUIT(self) -> None:
+        """Sends a QUIT command to the 'terp, then keeps sending it Y commands until
+        it gives up.
+        """
+        _ = self.process_command_and_return_output('QUIT', be_patient=False)
+        try:
+            start_time, iterations = datetime.datetime.now(), 0
+            while (iterations <=20) and ((datetime.datetime.now() - start_time).total_seconds() <= 30):
+                _ = self.Y(be_patient=(iterations == 0))
+                if iterations:
+                    time.sleep(0.1)
+                iterations += 1
+        except BaseException:
+            pass
 
     def evaluate_context(self, output: str, command:str) -> dict:
         """Looks at the output retrieved after running a command and infers as much as it
@@ -1254,6 +1274,7 @@ def make_moves(depth=0) -> None:
                     make_moves(depth=1+depth)
             except Exception as errrr:
                 document_problem("general_exception", data={'error': errrr, 'command': c})
+                sys.exit(0)
             finally:
                 moves += 1
                 total = dead_ends + successes
@@ -1291,7 +1312,7 @@ def processSigInt(*args, **kwargs):
     """
     try:
         print("Caught Ctrl-C or other SIGINT; cleaning up ...")
-        terp_proc._reader._quit = True
+        terp_proc._clean_up()
         time.sleep(2)
     except NameError:           # If we're getting here without having set everything up, then just bail.
         pass

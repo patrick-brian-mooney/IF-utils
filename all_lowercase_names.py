@@ -52,3 +52,7 @@ for f in working_dir.glob("*"):
     lower_f = transform_case(f)
     if not f.samefile(lower_f):
         f.rename(lower_f)
+
+print ("Done!\n")
+
+
