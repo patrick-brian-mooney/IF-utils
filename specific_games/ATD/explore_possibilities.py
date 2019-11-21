@@ -9,13 +9,17 @@ other puzzles. At the same time, having played through to a solution, it's easy
 to wonder how many other ways the puzzles could be solved. This script is an
 attempt to explore that question.
 
+(N.B. This docstring is clearly out of date. This is no longer much of a quick
+hack, even if it started off that way once.)
+
 It "plays" ATD repeatedly, making all possible sequences of moves, looking for
 those that result in successful outcomes and reporting them. It's also
 interested in overcoming a technical limitation of the original, the maximum-
 simultaneous-time-travel hard limit of 2; this script plays a hacked version of
 ATD that has room for up to 16 different simultaneous interactions. (SURELY
 there couldn't be room for THAT MANY simultaneous copies moving around the map
-at the same time.)
+at the same time.) (N.B. Or rather, it will, once the initial run with the
+unmodified copy has been completed.)
 
 This script is copyright 2019 by Patrick Mooney. It is released under the GPL,
 either version 3 or (at your option) any later version. See the file LICENSE
