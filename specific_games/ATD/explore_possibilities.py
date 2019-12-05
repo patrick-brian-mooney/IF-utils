@@ -70,7 +70,7 @@ logs_directory = working_directory / 'logs'
 commands_file = base_directory / 'commands'         #FIXME: do these two even still exist?
 rooms_file = base_directory / 'rooms.json'
 
-# Global statistics
+# Global statistics; these are overwritten when restoring state from previous runs.
 dead_ends = 0
 successes = 0
 moves = 0
@@ -1278,7 +1278,7 @@ def make_moves(depth=0) -> None:
                     make_moves(depth=1+depth)
             except Exception as errrr:
                 document_problem("general_exception", data={'error': errrr, 'command': c})
-                sys.exit(0)
+                sys.exit(1)
             finally:
                 moves += 1
                 total = dead_ends + successes
