@@ -345,9 +345,9 @@ def processUSR2(*args, **kwargs) -> None:
     wherever that happens to be when the signal is caught, is completely evaluated.
     This involves solve_maze() recursively calling itself more times, perhaps many
     more, though usually the current status winds up being saved relatively quickly,
-    because the algorithm actually spends most of its time tracing dead-ends. There
-    is no guarantee of this, however. It depends on where the algorithm is when the
-    signal is caught.
+    because the algorithm actually spends most of its time tracing through top-level
+    branches with a lot of nearby leaf nodes. There is no guarantee of this,
+    however. It depends on where the algorithm is when the signal is caught.
 
     Note that "saving progress" in this way is better than nothing, but doesn't
     guarantee that NO work will have to be re-performed on the next run.
@@ -362,14 +362,6 @@ def set_up() -> None:
     load_previous_progress()
     signal.signal(signal.SIGUSR1, processUSR1)
     signal.signal(signal.SIGUSR2, processUSR2)
-
-
-force_test = False               # For jumping into things with an IDE debugger.
-if force_test:
-    # We're walking through clean_progress_data() here.
-    set_up()
-    clean_progress_data()
-    sys.exit(0)
 
 
 if __name__ == "__main__":
