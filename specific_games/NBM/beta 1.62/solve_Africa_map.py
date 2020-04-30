@@ -92,28 +92,6 @@ borders = {
 }
 
 
-def sanity_check() -> None:
-    """Check that some basic parameters for the input data are not nonsensical before
-    we begin running.
-    """
-    error = False
-    for state, neighbors in borders.items():
-        assert isinstance(neighbors, list), "ERROR: State %s has a NEIGHBORS that is not a list!" % state
-        assert state not in neighbors, "ERROR: %s is marked as its own neighbor!" % state
-        for n in neighbors:
-            if n not in borders:
-                print("ERROR! state %s has a neighbor, %s, that isn't defined as a state!" % (state, n))
-                error = True
-            elif state not in borders[n]:
-                print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, n, state))
-                error = True
-    if error:
-        print("Unable to validate data!")
-        sys.exit(1)
-    else:
-        print("No obvious data validation errors! Continuing...")
-
-
 def time_so_far() -> float:
     """Convenience function that returns the number of seconds since the run started.
     If the run has been interrupted and restarted from checkpointing data, it
@@ -122,17 +100,6 @@ def time_so_far() -> float:
     possible.
     """
     return (datetime.datetime.now() - start_time).total_seconds()
-
-
-# We now just use str() directly, so this is all redundant and only remains here to save a little typing if key indexing format ever needs to change.
-# path_to_key = str           # Called so often that we just rebind to make them equivalent to save on the overhead from the calling-returning wrapper.
-"""
-def path_to_key(the_path:list) -> str:
-    #Converts THE_PATH (a list of previously-visited country codes) into a canonical
-    #representation used to index the global dictionary EXPLORED_PATHS.
-    #
-    return str(the_path)
-"""
 
 
 def is_redundant_strand(which_path: str) -> bool:
@@ -164,10 +131,10 @@ def is_redundant_strand(which_path: str) -> bool:
     return False
 
 
-def pretty_print(solution: str) -> None:
+def pretty_print(what: str) -> None:
     """Pretty-print a line of text that might need to be wrapped."""
     chosen_width = max(shutil.get_terminal_size()[0], 40)
-    for line_num, line in enumerate(textwrap.wrap(solution, width=chosen_width-6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
+    for line_num, line in enumerate(textwrap.wrap(what, width=chosen_width - 6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
         print("    " if (line_num > 0) else "  ", end='')     # Indent all lines after first.
         print(line.strip())
 
@@ -362,6 +329,28 @@ def set_up() -> None:
     load_previous_progress()
     signal.signal(signal.SIGUSR1, processUSR1)
     signal.signal(signal.SIGUSR2, processUSR2)
+
+
+def sanity_check() -> None:
+    """Check that some basic parameters for the input data are not nonsensical before
+    we begin running.
+    """
+    error = False
+    for state, neighbors in borders.items():
+        assert isinstance(neighbors, list), "ERROR: State %s has a NEIGHBORS that is not a list!" % state
+        assert state not in neighbors, "ERROR: %s is marked as its own neighbor!" % state
+        for n in neighbors:
+            if n not in borders:
+                print("ERROR! state %s has a neighbor, %s, that isn't defined as a state!" % (state, n))
+                error = True
+            elif state not in borders[n]:
+                print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, n, state))
+                error = True
+    if error:
+        print("Unable to validate data!")
+        sys.exit(1)
+    else:
+        print("No obvious data validation errors! Continuing...")
 
 
 if __name__ == "__main__":
