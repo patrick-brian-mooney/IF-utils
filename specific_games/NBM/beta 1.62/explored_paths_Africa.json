@@ -3628,5 +3628,15 @@
         "success": 0,
         "dead ends": 87927286918,
         "time": 17281319.687799
+    },
+    "['GM', 'SN', 'ML', 'DZ', 'NE', 'TD', 'SD', 'ER', 'DJ', 'ET', 'SO']": {
+        "success": 0,
+        "dead ends": 87928492969,
+        "time": 17281583.073208
+    },
+    "['GM', 'SN', 'ML', 'DZ', 'NE', 'TD', 'SD', 'ER', 'DJ', 'ET', 'KE']": {
+        "success": 0,
+        "dead ends": 87929699021,
+        "time": 17281796.0
     }
 }

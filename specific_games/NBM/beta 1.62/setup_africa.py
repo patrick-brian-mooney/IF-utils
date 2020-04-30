@@ -13,6 +13,6 @@ from Cython.Build import cythonize
 
 setup(
     name='solve_Africa_map program',
-    ext_modules=cythonize("africa_guts.py"),
+    ext_modules=cythonize("africa_guts.pyx"),
     zip_safe=False,
 )

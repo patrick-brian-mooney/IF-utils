@@ -12,7 +12,7 @@ script.
 """
 
 
-import datetime, json, signal, sys
+import datetime, json, signal
 
 import africa_guts as ag
 
@@ -71,30 +71,8 @@ def processUSR2(*args, **kwargs) -> None:
     processUSR1()           # Also display current status
 
 
-def sanity_check() -> None:
-    """Check that some basic parameters for the input data are not nonsensical before
-    we begin running.
-    """
-    error = False
-    for state, neighbors in ag.borders.items():
-        assert isinstance(neighbors, list), "ERROR: State %s has a NEIGHBORS that is not a list!" % state
-        assert state not in neighbors, "ERROR: %s is marked as its own neighbor!" % state
-        for n in neighbors:
-            if n not in ag.borders:
-                print("ERROR! state %s has a neighbor, %s, that isn't defined as a state!" % (state, n))
-                error = True
-            elif state not in ag.borders[n]:
-                print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, n, state))
-                error = True
-    if error:
-        print("Unable to validate data!")
-        sys.exit(1)
-    else:
-        print("No obvious data validation errors! Continuing...")
-
-
 def set_up() -> None:
-    sanity_check()
+    ag.sanity_check()
     load_previous_progress()
     signal.signal(signal.SIGUSR1, processUSR1)
     signal.signal(signal.SIGUSR2, processUSR2)

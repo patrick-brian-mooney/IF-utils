@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
+# cython: language_level=3, boundscheck=False
 # -*- coding: utf-8 -*-
 """Implementation of the guts of solve_Africa_map.py, a script to find
 solutions to the "Africa" puzzle in beta version 1.62 of Greg Boettcher's
@@ -6,17 +7,18 @@ solutions to the "Africa" puzzle in beta version 1.62 of Greg Boettcher's
 because running under pure Python, it has taken 200 days' worth of processor
 time to explore not quite 88 billion pathways.
 
-This script is copyright 2019 by Patrick Mooney. You may use it for any purpose
+This script is copyright 2019-20 by Patrick Mooney. You may use it for any purpose
 whatsoever provided that this copyright notice, unchanged, accompanies the
 script.
 """
 
 
-import datetime, json, os, shutil, textwrap
+import datetime, json, os, shutil, sys, textwrap
 
 
 # Set up basic parameters. If we have previous work checkpointed, these will all be overwritten.
 start_time = datetime.datetime.now()
+
 successful_paths, dead_end_paths = 0, 0
 
 # Parameters for tracking previous work, in case we get interrupted
@@ -24,15 +26,15 @@ explored_paths = dict()
 successful_paths_file = os.path.join(os.getcwd(), 'successful_paths_Africa.txt')
 
 # Some basic info for tracking how long it's been since we've saved.
-save_interval = 4 * 60 * 60                 # seconds
+DEF save_interval = 4 * 60 * 60             # seconds
 last_save_time = datetime.datetime.now()
 force_save_after_next_node = False          # Sending signal USR2 to the script will set this to True, causing progress to be saved "relatively soon."
 
 # Changing this next constant has subtle implications for data tracking. All in all, it's best to increase, not decrease, it, but not by too much.
-path_length_to_track = 12
+DEF path_length_to_track = 12
 
 # Other tracking parameters.
-minimum_trackable_length = 4
+DEF minimum_trackable_length = 4
 explored_paths_file = os.path.join(os.getcwd(), "explored_paths_Africa.json")
 
 # Quick sanity check.
@@ -92,7 +94,7 @@ borders = {
 }
 
 
-def time_so_far() -> float:
+cpdef float time_so_far():
     """Convenience function that returns the number of seconds since the run started.
     If the run has been interrupted and restarted from checkpointing data, it
     returns the total time spent including checkpointed time on previous runs, since
@@ -102,7 +104,7 @@ def time_so_far() -> float:
     return (datetime.datetime.now() - start_time).total_seconds()
 
 
-def is_redundant_strand(which_path: str) -> bool:
+cdef bint is_redundant_strand(which_path: str):
     """If the path in WHICH_PATH is redundant relative to the global progress store
     EXPLORED_PATHS, returns True; otherwise, returns False.
 
@@ -131,7 +133,7 @@ def is_redundant_strand(which_path: str) -> bool:
     return False
 
 
-def pretty_print(what: str) -> None:
+cdef pretty_print(what: str):
     """Pretty-print a line of text that might need to be wrapped."""
     chosen_width = max(shutil.get_terminal_size()[0], 40)
     for line_num, line in enumerate(textwrap.wrap(what, width=chosen_width - 6, replace_whitespace=False, expand_tabs=False, drop_whitespace=False)):
@@ -139,7 +141,7 @@ def pretty_print(what: str) -> None:
         print(indent + line.strip())
 
 
-def clean_progress_data() -> None:
+cdef clean_progress_data():
     """Clean up the currently stored progress data by simplifying the data stored in
     the global variable EXPLORED_PATHS.
 
@@ -174,7 +176,7 @@ def clean_progress_data() -> None:
         explored_paths = pruned_dict
 
 
-def save_progress(current_path: list) -> None:
+cdef save_progress(current_path: list):
     """Writes out the current progress data to EXPLORED_PATHS_FILE, first adding
     CURRENT_PATH as a path that has been completely explored, along with all of the
     relevant timing and counting data.
@@ -200,7 +202,7 @@ def save_progress(current_path: list) -> None:
     last_save_time = datetime.datetime.now()
 
 
-def find_path_from(starting_point:str, path_so_far:list=None) -> None:
+cpdef find_path_from(starting_point: str, path_so_far: list=None):
     """Recursively checks all exits not yet visited to see whether they lead to a
     solution. If it finds one, it prints it. If there are no so-far-unvisited exits
     from STARTING_POINT, it just returns, allowing other branches to be explored.
@@ -259,10 +261,34 @@ def find_path_from(starting_point:str, path_so_far:list=None) -> None:
         dead_end_paths += 1
         if dead_end_paths % 1000000 == 0:
             how_long = time_so_far()/3600
-            print('  (%.3f billion dead-end paths so far, in %.2f hours [or %.3f days])' % (dead_end_paths / 1000000000, how_long, how_long/24))
+            print('  (%.3f billion dead-end paths so far, in %.2f hours [or %.3f days])' % (dead_end_paths / 1000000000,
+                                                                                            how_long, how_long/24))
 
     if (len(path_so_far) <= path_length_to_track) and (str(path_so_far) not in explored_paths):                      #
         # Document we've finished this path, if it's at most the right length.
         save_progress(path_so_far)
     elif force_save:                                                    # Or if it's been long enough, or we caught the USR2 signal.
         save_progress(path_so_far)
+
+def sanity_check() -> None:
+    """Check that some basic parameters for the input data are not nonsensical before
+    we begin running.
+    """
+    error = False
+    for state, neighbors in borders.items():
+        assert state not in neighbors, "ERROR: %s is marked as its own neighbor!" % state
+        for n in neighbors:
+            if n not in borders:
+                print("ERROR! state %s has a neighbor, %s, that isn't defined as a state!" % (state, n))
+                error = True
+            elif state not in borders[n]:
+                print("ERROR! %s has a neighbor, %s, but %s is not a neighbor to %s!" % (state, n, n, state))
+                error = True
+    if error:
+        print("Unable to validate data!")
+        sys.exit(1)
+    else:
+        print("No obvious data validation errors! Continuing...")
+
+
+
