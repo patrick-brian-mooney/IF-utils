@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 # -*- coding: utf-8 -*-
 """A quick hack to help solve the Africa-map puzzle in beta version 1.62 of Greg
 Boettcher's Nothing But Mazes (2019). Because of the enormous number of

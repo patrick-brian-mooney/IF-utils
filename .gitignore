@@ -1,0 +1,9 @@
+__pycache__
+.idea
+specific_games/ATD/working/saves
+*.bak
+specific_games/ATD/[2004] All Things Devours
+specific_games/NBM/beta 1.62/build
+*.c
+*.so
+env/
