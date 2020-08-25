@@ -165,7 +165,7 @@ rooms = {
 
 # Experience has shown that it's faster to limit commands via a filter function or two instead of allowing the 'terp
 # to try it and then having to restore from a save file. However, branches should of course only be pruned in advance
-# when it's possible to be ABSOLUTELY SURE that they're not a viale way to move forward.
+# when it's possible to be ABSOLUTELY SURE, in advance, that they're not a viable way to move forward.
 
 # Functions that have no need to look at the current command to know if their action is available can just consume
 # it with *pargs syntax.
@@ -392,7 +392,7 @@ def not_after_exiting(c:str) -> bool:
     """A filter for ENTER PROTOTYPE: don't allow ENTER PROTOTYPE right after getting out
     of it. (This is equivalent to WAIT. WAIT: it's not even possible to hide from
     pastPC and futurePC inside the prototype, since they'll see you through the open
-    door.)
+    door in the side of the device.)
     """
     return (terp_proc.last_command.lower().strip() not in ['exit', 'go out',])
 
@@ -439,7 +439,7 @@ def only_after_fixing_prototype(*pargs) -> bool:
 
 
 # Now that we've defined the filter functions, fill out the command-selection parameters.
-# Sure, this could be done more tersely, and has been in previous versions, but being explicit pays off in clarity.
+# Sure, this could be done more tersely, and has been in earlier versions, but being explicit pays off in clarity.
 all_commands = {
     "close deutsch lab":                lambda c: (not_twice_in_a_row(c)) and (only_in(c, ['basement corridor', 'the deutsch laboratory', 'inside the prototype'])),
     "close equipment door":             lambda c: (not_twice_in_a_row(c)) and (only_in(c, ["basement corridor", "basement equipment room", "first floor corridor", "first floor equipment room", "second floor corridor"])),
@@ -645,7 +645,8 @@ def clean_progress_data() -> None:
     """Eliminate any checkpoints made redundant by the fact that a more-general
     progress checkpoint has been created.
 
-    Note that we always keep all strands of length 4 or less.
+    Note that, despite what that last paragraph said, we always also keep all strands
+    of length 4 or less.
     """
     global progress_data
     pruned_dict = {k: v for k, v in progress_data.items() if (k.count('.') <= 4) or (not is_redundant_strand(k))}
@@ -989,7 +990,7 @@ class TerpConnection(object):
         found_name = False
         while not found_name:
             p = save_file_directory / str(uuid.uuid4())
-            found_name = not p.exists()                         # Yes, vulnerable to race conditions, Vanishingly so, though.
+            found_name = not p.exists()                         # Yes, vulnerable to race conditions, Vanishingly so, though. Still, be careful.
         debug_print("(saving 'terp state to %s)" % p, 5)
         _ = self.process_command_and_return_output('save', be_patient=False)   # We can't expect to get a response here: the 'terp doesn't necessarily end it's response with \n, because it's waiting for a response on the same line, so we won't get the prompt text until after we've passed the prompt answer in.
         output = self.process_command_and_return_output(os.path.relpath(p, base_directory))
@@ -1298,7 +1299,7 @@ def play_game() -> None:
 
 
 def processUSR1(*args, **kwargs) -> None:
-    """Handle the USR1 signal by cycling through  available debugging verbosity levels."""
+    """Handle the USR1 signal by cycling through available debugging verbosity levels."""
     global verbosity
     verbosity = (verbosity + 1) % (1 + maximum_verbosity_level)
     print("\nDebugging verbosity changed to %d" % verbosity)
