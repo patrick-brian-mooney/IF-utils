@@ -54,7 +54,8 @@ verbosity = 2       # How chatty are we being about our progress?
 maximum_verbosity_level = 4
 transcript = True   # If True, issue a SCRIPT command at the beginning of the game to keep a transcript of the whole thing.
 
-# Program-running parameters. Probably not useful when not on my system. Override with -i  and -s, respectively.
+# Next, we'll have some program-configuration parameters, starting with file and directory structure.
+# First: Program-running parameters. Not useful when not on my system. Override with -i  and -s, respectively.
 interpreter_location = Path('/home/patrick/bin/dfrotz/dfrotz').resolve()
 interpreter_flags = ["-m"]
 story_file_location = Path('/home/patrick/games/IF/by author/Ord, Toby/as half sick of shadows/[2004] All Things Devours/devours.z5').resolve()
@@ -67,8 +68,6 @@ save_file_directory = working_directory / 'saves'
 successful_paths_directory = working_directory / 'successful_paths'
 logs_directory = working_directory / 'logs'
 
-commands_file = base_directory / 'commands'         #FIXME: do these two even still exist?
-rooms_file = base_directory / 'rooms.json'
 
 # Global statistics; these are overwritten when restoring state from previous runs.
 dead_ends = 0
@@ -79,6 +78,9 @@ maximum_walkthrough_length = 0
 
 progress_data = dict()
 
+# Force an early checkpointing moment by pretending the last one was five decades ago. We do this because if there's a problem with checkpointing, we want it to show up early.
+last_checkpoint_time = datetime.datetime(year=1970, month=1, day=1, hour=0, minute=0)
+minimum_checkpointing_interval = 10 * 60        # seconds
 
 # Some data used when parsing the game's output and/or making decisions about what commands are allowed.
 failure_messages = [l.strip().lower() for l in ['*** You have failed ***',]]
@@ -936,9 +938,13 @@ class TerpConnection(object):
 
     def create_progress_checkpoint(self) -> None:
         """Update the dictionary that keeps track of which possible branches of the problem
-        space we've already tried. Write that updated dictionary to disk.
+        space we've already tried. If it's been at least minimum_checkpointing_interval
+        seconds, also clean up redundant information in the progress data and write that
+        updated dictionary to disk.
         """
         global progress_data
+        global last_checkpoint_time
+        
         progress_data[self.text_walkthrough] = {
             'dead ends': dead_ends,
             'successes': successes,
@@ -947,9 +953,11 @@ class TerpConnection(object):
             'maximum walkthrough length': maximum_walkthrough_length,
         }
         debug_print("(saving algorithm progress data.)", 2)
-        clean_progress_data()
-        with open(progress_checkpoint_file, mode='wt') as pc_file:
-            json.dump(progress_data, pc_file, default=str, indent=2)
+        if (datetime.datetime.now() - last_checkpoint_time).seconds >= minimum_checkpointing_interval:
+            clean_progress_data()
+            with open(progress_checkpoint_file, mode='wt') as pc_file:
+                json.dump(progress_data, pc_file, default=str, indent=2)
+            last_checkpoint_time = datetime.datetime.now()
 
     def _pass_command_in(self, command:str) -> None:
         """Passes a command in to the 'terp. This is a low-level atomic-type function that

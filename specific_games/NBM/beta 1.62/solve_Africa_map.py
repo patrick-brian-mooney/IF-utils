@@ -14,6 +14,8 @@ script.
 
 import datetime, json, signal
 
+import pyximport; pyximport.install()
+
 import africa_guts as ag
 
 
