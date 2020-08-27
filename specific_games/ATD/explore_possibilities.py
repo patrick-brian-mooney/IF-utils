@@ -944,7 +944,7 @@ class TerpConnection(object):
         """
         global progress_data
         global last_checkpoint_time
-        
+
         progress_data[self.text_walkthrough] = {
             'dead ends': dead_ends,
             'successes': successes,
@@ -952,8 +952,8 @@ class TerpConnection(object):
             'time': get_total_time(),
             'maximum walkthrough length': maximum_walkthrough_length,
         }
-        debug_print("(saving algorithm progress data.)", 2)
         if (datetime.datetime.now() - last_checkpoint_time).seconds >= minimum_checkpointing_interval:
+            debug_print("(saving algorithm progress data.)", 2)
             clean_progress_data()
             with open(progress_checkpoint_file, mode='wt') as pc_file:
                 json.dump(progress_data, pc_file, default=str, indent=2)
