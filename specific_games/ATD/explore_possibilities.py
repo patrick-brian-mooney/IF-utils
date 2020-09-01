@@ -952,6 +952,7 @@ class TerpConnection(object):
             'time': get_total_time(),
             'maximum walkthrough length': maximum_walkthrough_length,
         }
+
         if (datetime.datetime.now() - last_checkpoint_time).seconds >= minimum_checkpointing_interval:
             debug_print("(saving algorithm progress data.)", 2)
             clean_progress_data()
