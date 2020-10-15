@@ -5,7 +5,7 @@ Thanks to Ant for the annotated code at https://ahopeful.wordpress.com/2020/10/0
 Needs to be run from a terminal.
 """
 
-import math, random, time
+import math, shutil, random, time
 
 
 
@@ -32,20 +32,24 @@ def READ():
 
 
 def get_terminal_width():
-    """Get the width of the terminal. Of course, on a real C64, this is always the same."""
-    return 40
+    """Get the current terminal width."""
+    ret, _ = shutil.get_terminal_size()
+    if ret <= 0:
+        return 40
+    return ret
 
 
-# Line 0 in original!
+# Line 0 in original! Setting up global data.
 d = 11
 
-# POKE53280,d:POKE53281,d       # background color? re-implement?
+# POKE53280,d       # set background frame color to dark gray.
+# POKE53281,d       # also set background color to same dark gray, so that there is no visible frame.
 
 print('\n\n' + (" " * round((get_terminal_width() - 13) / 2)) + "AMAZING QUEST\n\n")
 print("The gods grant victory.")
 
 
-# Line 1 in original!
+# Line 1 in original! Setting up global data.
 a = dict()                          # In BASIC, DIM a$(99). Using int-indexed DICTs for BASIC arrays works fine here.
 m = dict()                          # Montfort doesn't DIM this, meaning it's no more than 11 elements.
 
@@ -84,15 +88,11 @@ while d > 0:
     if r < 0.2:
         print("Attacked" + ", a ship lost!")     # here is the line that was buggy in the original version
 
-    # GOTO2
-
 
     # Line 5 in original!
 
     elif r < 0.4:
         print("Well-you see an amazing " + random.choice(["sea.", "sky.", "sun."]))
-
-    # GOTO2
 
 
     # Line 6 in original!
@@ -100,7 +100,6 @@ while d > 0:
     else:
         d -= 1
         print("Yes! You win " + random.choice(["jewels.", "cattle.", "bread."]))
-    # :IFd>.GOTO2
 
 
 # Lines 7-9 in original are only data statements!
