@@ -1,6 +1,11 @@
 """A re-implementation of Nick Montfort's Amazing Quest, an IFComp entry, in Python.
 
-Thanks to Ant for the annotated code at https://ahopeful.wordpress.com/2020/10/04/ifcomp-2020-amazing-quest-nick-montfort-c64-basic/.
+Thanks to Ant for the annotated code at
+https://ahopeful.wordpress.com/2020/10/04/ifcomp-2020-amazing-quest-nick-montfort-c64-basic/.
+
+This is a more-of-less direct translation of the original, including the logic
+that's motivated by the limitations of the BASIC language, into Python. A more
+Pythonic implementation is available in reimplementation.py.
 
 Needs to be run from a terminal.
 """
