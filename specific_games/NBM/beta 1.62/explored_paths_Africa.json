@@ -10164,29 +10164,29 @@
         "dead ends": 155475154642,
         "time": 27345048.0
     },
-    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'DZ', 'MA']": {
+    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'DZ']": {
         "success": 0,
-        "dead ends": 155475154643,
-        "time": 27345048.0
+        "dead ends": 155800287920,
+        "time": 27389432.0
     },
-    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'DZ', 'EH']": {
+    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'NE']": {
         "success": 0,
-        "dead ends": 155475154645,
-        "time": 27345048.0
+        "dead ends": 156036760862,
+        "time": 27419236.0
     },
-    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'DZ', 'MR']": {
+    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'NE', 'NG', 'CM', 'TD', 'LY', 'EG', 'SD', 'SS', 'CF', 'CD', 'BI', 'RW', 'UG', 'TZ', 'MZ', 'ZM', 'AO', 'NA', 'BW', 'ZA', 'ZW']": {
         "success": 0,
-        "dead ends": 155475154646,
-        "time": 27345048.0
+        "dead ends": 156128882244,
+        "time": 27433636.0
     },
-    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'DZ', 'NE']": {
+    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'TD', 'CM', 'CG', 'CF', 'SD', 'ER', 'DJ', 'SO', 'ET', 'SS', 'UG', 'RW', 'TZ', 'MW', 'ZM', 'BW', 'NA', 'ZA', 'MZ']": {
         "success": 0,
-        "dead ends": 155594636481,
-        "time": 27361428.0
+        "dead ends": 156208125747,
+        "time": 27448036.0
     },
-    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'DZ', 'LY']": {
+    "['GM', 'SN', 'GN', 'CI', 'GH', 'TG', 'BJ', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'NE', 'NG', 'CM', 'TD', 'SD', 'ER', 'ET', 'KE', 'SS', 'UG', 'CD', 'AO', 'NA', 'ZA', 'ZW', 'BW', 'ZM', 'MZ', 'MW', 'TZ', 'BI']": {
         "success": 0,
-        "dead ends": 155697462201,
-        "time": 27375746.0
+        "dead ends": 156294099590,
+        "time": 27462436.0
     }
 }
