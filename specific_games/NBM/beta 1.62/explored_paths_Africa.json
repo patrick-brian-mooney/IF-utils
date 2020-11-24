@@ -10229,24 +10229,49 @@
         "dead ends": 160381425334,
         "time": 28084074.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'DZ', 'TN', 'LY', 'NE', 'TD']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'DZ', 'TN']": {
         "success": 0,
-        "dead ends": 160404052255,
-        "time": 28086676.0
+        "dead ends": 160711758128,
+        "time": 28126536.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'DZ', 'TN', 'LY', 'NE', 'NG']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'DZ']": {
         "success": 0,
-        "dead ends": 160432495649,
-        "time": 28089784.0
+        "dead ends": 160711758128,
+        "time": 28126536.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'DZ', 'TN', 'LY', 'NE', 'BJ']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'NE', 'DZ']": {
         "success": 0,
-        "dead ends": 160460939043,
-        "time": 28092998.0
+        "dead ends": 160809100449,
+        "time": 28138276.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'DZ', 'TN', 'LY', 'NE', 'BF', 'BJ']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'NE', 'LY']": {
         "success": 0,
-        "dead ends": 160489382434,
-        "time": 28097500.0
+        "dead ends": 160857771616,
+        "time": 28143778.0
+    },
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'NE', 'TD']": {
+        "success": 0,
+        "dead ends": 160907890131,
+        "time": 28149686.0
+    },
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'NE', 'NG']": {
+        "success": 0,
+        "dead ends": 160980463546,
+        "time": 28159488.0
+    },
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'NE', 'BJ']": {
+        "success": 0,
+        "dead ends": 161053036961,
+        "time": 28170314.0
+    },
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'NE', 'BF', 'BJ']": {
+        "success": 0,
+        "dead ends": 161125610373,
+        "time": 28180306.0
+    },
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'ML', 'NE', 'BF', 'TG', 'GH']": {
+        "success": 0,
+        "dead ends": 161125610374,
+        "time": 28180306.0
     }
 }
