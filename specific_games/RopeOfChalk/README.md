@@ -1,9 +1,11 @@
-A re-implementation of <span class="vcard"><a class="fn url" href="http://nickm.com">Nick Montfort</a>'s <a rel="http://www.amirrorclear.net/flowers/game/devours/"><cite style="font-style:italic;">Amazing Quest</cite></a></span>, from IFComp 2020, in Python.
+A Cythonized script to explore the very tangential question "Can you pass through each roadway in the sub-map of Cealdhame exactly once" in Ryan Veeder's [A Rope of Chalk](https://ifdb.tads.org/viewgame?id=l4ziasab1x8t799c), from IFComp 2020.
 
-## `direct_translation.py`
-A translation, as direct as possible from C64 BASIC to Python 3, of the program. Rather awkward.
+## `run_cealdhame.py`
+A stub unit that runs the Cython code in `cealdhame.py`.
 
 ## `reimplemention.py`
-A much-streamlined version of the program, simplified largely by avoiding reimplementing the BASIC-based READ/DATA logic.
+The actual implementation in Cython of the algorithm searching the possiblity space.
 
-<footer>This file last updated 15 Oct 2020.</footer>
+**Note:** This is known to grow quite slow quite quickly. I'll take a look at what's making it slow, but it won't be this week.
+
+<footer>This file last updated 18 Oct 2020.</footer>

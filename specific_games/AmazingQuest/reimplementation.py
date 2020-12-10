@@ -1,6 +1,12 @@
+#!/usr/bin/env python3
 """A re-implementation of Nick Montfort's Amazing Quest, an IFComp entry, in Python.
 
-Thanks to Ant for the annotated code at https://ahopeful.wordpress.com/2020/10/04/ifcomp-2020-amazing-quest-nick-montfort-c64-basic/.
+Thanks to Ant for the annotated code at
+https://ahopeful.wordpress.com/2020/10/04/ifcomp-2020-amazing-quest-nick-montfort-c64-basic/.
+
+This is a reimplementation of Montfort's original that strays further from the
+exact reimplemntation of ugly underlying implementation details that were
+motivated by the primitiveness of BASIC in the original.
 
 Needs to be run from a terminal.
 """
@@ -24,18 +30,14 @@ def get_terminal_width():
     return ret
 
 
-# Line 0 in original! (The BASIC mostly sets up global data that's been done more cleanly above.)
+# Lines 0-1 in original! (The BASIC mostly sets up global data that's been done more cleanly above.)
 travails_remaining = 11
 
 # POKE53280,d       # set background frame color to dark gray.
 # POKE53281,d       # also set background color to same dark gray, so that there is no visible frame.
 
 print('\n\n' + (" " * round((get_terminal_width() - 13) / 2)) + "AMAZING QUEST\n\n")
-print("The gods grant victory.")
-
-
-# Line 1 in original! (The BASIC mostly sets up global data that's been done more cleanly without READ/DATA statements.
-print("Now to home!")
+print("The gods grant victory.\n\nNow to home!")
 
 
 while travails_remaining > 0:

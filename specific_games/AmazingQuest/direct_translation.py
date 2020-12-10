@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """A re-implementation of Nick Montfort's Amazing Quest, an IFComp entry, in Python.
 
 Thanks to Ant for the annotated code at
