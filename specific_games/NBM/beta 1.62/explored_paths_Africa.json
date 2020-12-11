@@ -10379,44 +10379,29 @@
         "dead ends": 168952803860,
         "time": 29403932.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'DZ']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE']": {
         "success": 0,
-        "dead ends": 169031384905,
-        "time": 29413540.0
+        "dead ends": 169522805999,
+        "time": 29489480.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'LY']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NG', 'NE', 'DZ']": {
         "success": 0,
-        "dead ends": 169070675437,
-        "time": 29418138.0
+        "dead ends": 169574143038,
+        "time": 29496522.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'TD']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NG', 'NE', 'LY']": {
         "success": 0,
-        "dead ends": 169124714801,
-        "time": 29425828.0
+        "dead ends": 169599811567,
+        "time": 29500118.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'NG']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NG', 'NE', 'TD']": {
         "success": 0,
-        "dead ends": 169208481836,
-        "time": 29440442.0
+        "dead ends": 169634958186,
+        "time": 29506180.0
     },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'ML', 'DZ', 'MA']": {
+    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NG', 'NE', 'ML', 'DZ']": {
         "success": 0,
-        "dead ends": 169208481837,
-        "time": 29440442.0
-    },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'ML', 'DZ', 'EH']": {
-        "success": 0,
-        "dead ends": 169208481839,
-        "time": 29440442.0
-    },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'ML', 'DZ', 'MR']": {
-        "success": 0,
-        "dead ends": 169208481840,
-        "time": 29440442.0
-    },
-    "['GM', 'SN', 'GN', 'LR', 'CI', 'BF', 'BJ', 'NE', 'ML', 'DZ', 'LY', 'TN']": {
-        "success": 0,
-        "dead ends": 169208481841,
-        "time": 29440442.0
+        "dead ends": 169686295223,
+        "time": 29514418.0
     }
 }
