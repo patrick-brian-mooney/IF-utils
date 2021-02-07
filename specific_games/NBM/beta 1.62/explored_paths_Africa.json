@@ -10519,34 +10519,34 @@
         "dead ends": 196957520786,
         "time": 34272164.0
     },
-    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'TG', 'GH']": {
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'TG']": {
         "success": 0,
-        "dead ends": 196957520787,
-        "time": 34272164.0
+        "dead ends": 198228525624,
+        "time": 34465432.0
     },
-    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NE']": {
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'DZ']": {
         "success": 0,
-        "dead ends": 197527522926,
-        "time": 34357500.0
+        "dead ends": 198307106669,
+        "time": 34476336.0
     },
-    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NG', 'NE']": {
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'LY']": {
         "success": 0,
-        "dead ends": 197845023252,
-        "time": 34404080.0
+        "dead ends": 198346397201,
+        "time": 34481428.0
     },
-    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NG', 'TD']": {
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'TD']": {
         "success": 0,
-        "dead ends": 197977222253,
-        "time": 34425404.0
+        "dead ends": 198400436565,
+        "time": 34489900.0
     },
-    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NG', 'CM', 'TD']": {
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'NG']": {
         "success": 0,
-        "dead ends": 198028545667,
-        "time": 34432780.0
+        "dead ends": 198484203600,
+        "time": 34502920.0
     },
-    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NG', 'CM', 'CF']": {
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'TD', 'SD', 'ER', 'DJ', 'SO', 'ET', 'SS', 'UG', 'RW', 'TZ', 'ZM', 'ZW', 'BW', 'ZA', 'NA', 'AO', 'CD', 'CG', 'CF', 'CM', 'GQ', 'GA']": {
         "success": 0,
-        "dead ends": 198071452651,
-        "time": 34440240.0
+        "dead ends": 198580832705,
+        "time": 34517320.0
     }
 }
