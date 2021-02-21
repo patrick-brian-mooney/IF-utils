@@ -10553,5 +10553,35 @@
         "success": 0,
         "dead ends": 205788288386,
         "time": 35644272.0
+    },
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'NE', 'TD', 'NG', 'CM', 'CG', 'CF', 'SD', 'ET', 'DJ', 'SO', 'KE', 'SS', 'UG', 'CD', 'RW', 'BI', 'TZ', 'ZM', 'NA', 'BW', 'ZW', 'MZ', 'SZ', 'ZA', 'LS']": {
+        "success": 0,
+        "dead ends": 205875585003,
+        "time": 35658672.0
+    },
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'TD', 'NE', 'BJ', 'NG', 'CM', 'GA', 'CG', 'CD', 'CF', 'SD', 'ET', 'ER', 'DJ', 'SO', 'KE', 'UG', 'RW', 'BI', 'TZ', 'MW', 'MZ', 'SZ', 'ZA', 'BW', 'NA', 'ZM', 'AO']": {
+        "success": 0,
+        "dead ends": 205971455000,
+        "time": 35673072.0
+    },
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'NE', 'BJ', 'NG', 'TD', 'CM', 'CF', 'SD', 'ER', 'DJ', 'ET', 'KE', 'SS', 'CD', 'RW', 'BI', 'TZ', 'MW', 'MZ', 'SZ', 'ZA', 'NA', 'AO', 'ZM', 'ZW', 'BW']": {
+        "success": 0,
+        "dead ends": 206064299250,
+        "time": 35687472.0
+    },
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'EG', 'SD', 'ET', 'SS', 'UG', 'RW', 'TZ', 'MZ', 'MW', 'ZM', 'NA', 'AO', 'CD', 'CG', 'GA', 'GQ', 'CM', 'TD', 'NG', 'BJ', 'NE']": {
+        "success": 0,
+        "dead ends": 206155806021,
+        "time": 35701872.0
+    },
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE', 'NG', 'TD', 'CF', 'SD', 'SS', 'KE', 'UG', 'CD', 'BI', 'TZ', 'ZM', 'AO', 'NA', 'BW', 'ZA', 'SZ', 'MZ']": {
+        "success": 0,
+        "dead ends": 206250504054,
+        "time": 35716272.0
+    },
+    "['GM', 'SN', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'LY', 'NE', 'TD', 'SD', 'SS', 'CF', 'CD', 'ZM', 'ZW', 'BW', 'ZA', 'MZ', 'MW', 'TZ', 'RW', 'UG', 'KE', 'ET', 'ER', 'DJ', 'SO']": {
+        "success": 0,
+        "dead ends": 206348571110,
+        "time": 35730672.0
     }
 }
