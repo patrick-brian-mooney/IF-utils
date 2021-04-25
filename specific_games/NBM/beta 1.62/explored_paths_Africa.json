@@ -11254,29 +11254,44 @@
         "dead ends": 236769836703,
         "time": 40851004.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'TG', 'BJ', 'NE']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'TG', 'BJ']": {
         "success": 0,
-        "dead ends": 237339838842,
-        "time": 40949024.0
+        "dead ends": 238040841540,
+        "time": 41067884.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'TG', 'BJ', 'NG', 'NE']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'TG']": {
         "success": 0,
-        "dead ends": 237657339168,
-        "time": 40998900.0
+        "dead ends": 238040841540,
+        "time": 41067884.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'TG', 'BJ', 'NG', 'TD', 'CM']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'DZ']": {
         "success": 0,
-        "dead ends": 237692634445,
-        "time": 41006272.0
+        "dead ends": 238119422585,
+        "time": 41080716.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'TG', 'BJ', 'NG', 'TD', 'NE', 'DZ']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'LY']": {
         "success": 0,
-        "dead ends": 237705453794,
-        "time": 41008864.0
+        "dead ends": 238158713117,
+        "time": 41086156.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'TG', 'BJ', 'NG', 'TD', 'NE', 'LY']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'TD', 'CM']": {
         "success": 0,
-        "dead ends": 237711863478,
-        "time": 41010052.0
+        "dead ends": 238176491643,
+        "time": 41089200.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'TD', 'NG']": {
+        "success": 0,
+        "dead ends": 238194270168,
+        "time": 41093232.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'TD', 'LY']": {
+        "success": 0,
+        "dead ends": 238201347468,
+        "time": 41094472.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'BF', 'GH', 'TG', 'BJ', 'NE', 'TD', 'SD']": {
+        "success": 0,
+        "dead ends": 238204886138,
+        "time": 41095044.0
     }
 }
