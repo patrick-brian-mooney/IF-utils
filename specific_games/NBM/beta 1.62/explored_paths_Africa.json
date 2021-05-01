@@ -11289,29 +11289,24 @@
         "dead ends": 240181474137,
         "time": 41436192.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'NE', 'NG', 'TD', 'CM', 'GA', 'CG', 'CF', 'SS', 'SD', 'ER', 'DJ', 'SO', 'KE', 'UG', 'TZ', 'MZ', 'ZW', 'BW', 'ZA', 'NA', 'AO', 'ZM', 'CD']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA']": {
         "success": 0,
-        "dead ends": 240256863969,
-        "time": 41450592.0
+        "dead ends": 240656163842,
+        "time": 41532876.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'NE', 'BJ', 'NG', 'CM', 'TD', 'CF', 'CG', 'CD', 'AO', 'ZM', 'NA', 'ZA', 'ZW', 'MZ', 'MW', 'TZ', 'UG', 'KE', 'SO', 'DJ', 'ER', 'ET', 'SS', 'SD', 'LY']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'DZ', 'MA']": {
         "success": 0,
-        "dead ends": 240329579132,
-        "time": 41464992.0
+        "dead ends": 240656163843,
+        "time": 41532876.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'NE', 'NG', 'CM', 'GQ', 'GA', 'CG', 'CF', 'SS', 'ET', 'KE', 'UG', 'RW', 'BI', 'TZ', 'CD', 'AO', 'NA', 'BW', 'ZW', 'ZA', 'MZ', 'ZM', 'MW']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE']": {
         "success": 0,
-        "dead ends": 240400500837,
-        "time": 41479392.0
+        "dead ends": 240826817265,
+        "time": 41564880.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'SD', 'TD', 'CM', 'GQ', 'GA', 'CG', 'CF', 'SS', 'CD', 'AO', 'NA', 'BW', 'ZM', 'MZ', 'MW', 'TZ', 'RW', 'UG', 'KE', 'ET', 'DJ', 'ER']": {
+    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'DZ', 'LY']": {
         "success": 0,
-        "dead ends": 240467833923,
-        "time": 41493792.0
-    },
-    "['GM', 'SN', 'GW', 'GN', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'NE', 'NG', 'TD', 'CF', 'SD', 'ET', 'DJ', 'SO', 'KE', 'SS', 'CD', 'RW', 'BI', 'TZ', 'MW', 'MZ', 'ZW', 'BW', 'ZA', 'SZ']": {
-        "success": 0,
-        "dead ends": 240535947638,
-        "time": 41508192.0
+        "dead ends": 240978835407,
+        "time": 41594188.0
     }
 }
