@@ -222,12 +222,13 @@ def only_on_balcony(*pargs) -> bool:
 
 def not_twice_in_a_row(c: str) -> bool:
     """This function prevents the same command from being issued twice consecutively.
-    This is useful for many commands, because it eliminates--well, REDUCES-- the
+    This is useful for many commands, because it eliminates -- well, REDUCES -- the
     "when a command succeeds once, it will generally succeed twice; but the second
     time is essentially a synonym for WAIT" problem.
 
     Note that "same command" in the paragraph above means "the EXACT SAME command,
-    character for character," not "a similar command."
+    character for character," not "a similar command," nor "a command that means the
+    same thing," nor "a command with the same effects."
     """
     return (c.strip().strip(string.punctuation).strip().lower() != terp_proc.last_command.strip().strip(string.punctuation).strip().lower())
 
@@ -311,7 +312,7 @@ def no_pacing_unless_hiding(c: str) -> bool:
     Note that this function prohibits "one-step" but not "multi-step" pacing, which
     is harder to detect (but drives less of a combinatorial explosion anyway, due to
     the time constraints in the game and the fact that multi-step pacing takes more
-    in-game moves to execute). For instance, it prohibits GO SOUTH immediately after
+    in-game time to execute). For instance, it prohibits GO SOUTH immediately after
     GO NORTH, but it doesn't prevent any of the commands in GO UP. GO UP. GO DOWN.
     GO DOWN, provided that the first GO DOWN is issued from a "hideable" location
     (e.g., the second-floor landing).
@@ -344,7 +345,7 @@ def north_filter(*pargs) -> bool:
     rooms that have, or might have, exits in that direction.
     """
     return terp_proc.current_room.lower().strip() in ["second floor corridor", "upstairs landing", "foyer",
-                                              "basement corridor", "basement landing"]
+                                                      "basement corridor", "basement landing"]
 
 
 def northeast_filter(*pargs) -> bool:
