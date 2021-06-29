@@ -11379,29 +11379,24 @@
         "dead ends": 263615834943,
         "time": 45863260.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NE', 'DZ']": {
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NE']": {
         "success": 0,
-        "dead ends": 263694415988,
-        "time": 45877324.0
+        "dead ends": 264185837082,
+        "time": 46023168.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NE', 'LY']": {
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NG', 'NE', 'DZ']": {
         "success": 0,
-        "dead ends": 263733706520,
-        "time": 45882928.0
+        "dead ends": 264237174121,
+        "time": 46031952.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NE', 'TD']": {
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NG', 'NE', 'LY']": {
         "success": 0,
-        "dead ends": 263787745884,
-        "time": 45892400.0
+        "dead ends": 264262842650,
+        "time": 46035468.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NE', 'NG']": {
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NG', 'NE', 'TD']": {
         "success": 0,
-        "dead ends": 263871512919,
-        "time": 45921664.0
-    },
-    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'BF', 'TG', 'BJ', 'NE', 'ML', 'DZ']": {
-        "success": 0,
-        "dead ends": 263950093962,
-        "time": 45951584.0
+        "dead ends": 264297989269,
+        "time": 46042528.0
     }
 }
