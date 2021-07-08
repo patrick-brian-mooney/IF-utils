@@ -11,9 +11,6 @@ version. See the file LICENSE.md for details.
 """
 
 
-import string
-
-
 alphabet = "abcdefghijklmnopqrstuvwxyz"
 
 
