@@ -11408,5 +11408,35 @@
         "success": 0,
         "dead ends": 272441436494,
         "time": 47595036.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'NE', 'BJ', 'NG', 'CM', 'GQ', 'GA', 'CG', 'CF', 'TD', 'SD', 'ER', 'ET', 'KE', 'TZ', 'ZM']": {
+        "success": 0,
+        "dead ends": 272521086272,
+        "time": 47609436.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'TD', 'CM', 'GQ', 'GA', 'CG', 'CF', 'CD', 'SS', 'ET', 'ER', 'DJ', 'SO', 'KE', 'UG', 'RW', 'TZ', 'MW', 'MZ', 'SZ', 'ZA', 'ZW', 'ZM', 'NA', 'AO']": {
+        "success": 0,
+        "dead ends": 272609221895,
+        "time": 47623836.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'NE', 'TD', 'CF', 'CM', 'GA', 'CG', 'CD', 'BI', 'RW', 'UG', 'SS', 'KE', 'TZ', 'MW', 'ZM', 'BW', 'ZW', 'ZA', 'SZ', 'MZ']": {
+        "success": 0,
+        "dead ends": 272693217996,
+        "time": 47638236.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'TD', 'NE', 'BJ', 'NG', 'CM', 'GA', 'CG', 'CF', 'SD', 'ET', 'SO', 'KE', 'SS', 'UG', 'CD', 'BI', 'TZ', 'MW', 'ZM', 'BW', 'ZW', 'ZA']": {
+        "success": 0,
+        "dead ends": 272776536019,
+        "time": 47652636.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE', 'LY', 'EG', 'SD', 'ER', 'DJ', 'SO', 'KE', 'ET', 'SS', 'UG', 'TZ', 'MW', 'MZ', 'SZ', 'ZA', 'ZW', 'BW', 'ZM', 'AO', 'CD', 'CG', 'GA', 'CM', 'TD', 'CF']": {
+        "success": 0,
+        "dead ends": 272860349296,
+        "time": 47667036.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE', 'BJ', 'NG', 'TD', 'CM', 'GQ', 'GA', 'CG', 'CD', 'AO', 'NA', 'BW', 'ZW', 'ZA', 'SZ', 'MZ', 'ZM', 'TZ', 'RW', 'UG', 'KE', 'SS', 'SD', 'ET', 'SO']": {
+        "success": 0,
+        "dead ends": 272949206028,
+        "time": 47681436.0
     }
 }
