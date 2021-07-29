@@ -11418,5 +11418,15 @@
         "success": 0,
         "dead ends": 277972484125,
         "time": 48550332.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'NG']": {
+        "success": 0,
+        "dead ends": 278061847972,
+        "time": 48570644.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'BF']": {
+        "success": 0,
+        "dead ends": 278376172135,
+        "time": 48630880.0
     }
 }
