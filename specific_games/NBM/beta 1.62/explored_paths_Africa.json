@@ -11439,14 +11439,29 @@
         "dead ends": 285894425195,
         "time": 49987236.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'ML', 'MR', 'EH', 'DZ', 'NE', 'TD', 'CF', 'CM', 'GQ', 'GA', 'CG', 'CD', 'RW', 'UG', 'SS', 'SD', 'ER', 'DJ', 'ET', 'SO', 'KE', 'TZ', 'MW', 'ZM', 'ZW', 'MZ', 'SZ', 'ZA', 'NA']": {
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'ML', 'MR', 'EH', 'DZ', 'NE']": {
         "success": 41,
-        "dead ends": 285976999699,
-        "time": 50001636.0
+        "dead ends": 286228122886,
+        "time": 50048700.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'ML', 'MR', 'EH', 'DZ', 'NE', 'BJ', 'NG', 'CM', 'CG', 'CF', 'SD', 'ER', 'ET', 'DJ', 'SO', 'KE', 'TZ', 'ZM', 'MZ', 'SZ', 'ZA', 'NA', 'AO', 'CD', 'SS', 'UG', 'RW']": {
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'ML', 'MR', 'EH', 'DZ', 'LY', 'NE', 'BJ', 'NG', 'CM', 'GQ', 'GA', 'CG', 'CF', 'SS', 'CD', 'BI', 'RW', 'UG', 'KE', 'TZ', 'MZ', 'SZ', 'ZA', 'BW', 'NA', 'AO', 'ZM', 'MW']": {
         "success": 41,
-        "dead ends": 286063290604,
-        "time": 50016036.0
+        "dead ends": 286306743164,
+        "time": 50063100.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'ML', 'MR', 'EH', 'DZ', 'LY', 'NE', 'BF', 'GH', 'TG', 'BJ', 'NG', 'CM', 'TD', 'SD', 'ET', 'SO', 'KE', 'SS', 'UG', 'RW', 'CD', 'BI', 'TZ', 'MW', 'MZ', 'SZ', 'ZA', 'ZW', 'BW', 'ZM', 'AO']": {
+        "success": 41,
+        "dead ends": 286378218181,
+        "time": 50077500.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'ML', 'MR', 'EH', 'DZ', 'LY', 'SD', 'TD', 'NE', 'BJ', 'NG', 'CM', 'CG', 'CF', 'CD', 'BI', 'RW', 'UG', 'SS', 'KE', 'TZ', 'MW', 'MZ', 'ZW', 'ZA', 'BW', 'NA']": {
+        "success": 41,
+        "dead ends": 286463356844,
+        "time": 50091900.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'ML', 'MR', 'EH', 'DZ', 'LY', 'EG', 'SD', 'ET', 'KE', 'SS', 'CF', 'TD', 'NG', 'CM', 'CG', 'CD', 'BI', 'TZ', 'MW', 'MZ', 'ZM', 'NA', 'BW', 'ZA', 'LS']": {
+        "success": 41,
+        "dead ends": 286532964199,
+        "time": 50106300.0
     }
 }
