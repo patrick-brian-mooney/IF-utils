@@ -11448,5 +11448,35 @@
         "success": 271,
         "dead ends": 295750087904,
         "time": 51729864.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'SD', 'ER', 'DJ', 'ET', 'SS', 'UG', 'RW', 'TZ', 'MW', 'MZ', 'ZW', 'ZA', 'NA', 'AO', 'ZM', 'CD', 'CG', 'CM', 'TD', 'NG', 'BJ', 'NE']": {
+        "success": 271,
+        "dead ends": 295820176389,
+        "time": 51744264.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'NE', 'BJ', 'NG', 'TD', 'CM', 'GQ', 'GA', 'CG', 'CF', 'CD', 'AO', 'NA', 'ZM', 'BW', 'ZA', 'SZ', 'MZ', 'MW', 'TZ', 'KE', 'ET', 'SS', 'UG']": {
+        "success": 271,
+        "dead ends": 295897767656,
+        "time": 51758664.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'MA', 'DZ', 'TN', 'LY', 'EG', 'SD', 'TD', 'NE', 'BJ', 'NG', 'CM', 'GQ', 'GA', 'CG', 'CF', 'SS', 'CD', 'ZM', 'NA', 'BW', 'ZA', 'ZW', 'MZ', 'TZ', 'UG', 'RW', 'BI']": {
+        "success": 271,
+        "dead ends": 295979156450,
+        "time": 51773064.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE', 'TD', 'CF', 'CG', 'CD', 'UG', 'SS', 'ET', 'SD', 'ER', 'DJ', 'SO', 'KE', 'TZ', 'ZM', 'MZ', 'SZ', 'ZA', 'ZW']": {
+        "success": 271,
+        "dead ends": 296062772223,
+        "time": 51787464.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE', 'BJ', 'NG', 'CM', 'CG', 'CF', 'TD', 'LY', 'EG', 'SD', 'ER', 'ET', 'DJ', 'SO', 'KE', 'UG', 'CD', 'TZ', 'MW', 'ZM', 'ZW', 'MZ', 'ZA', 'NA', 'BW']": {
+        "success": 271,
+        "dead ends": 296148031486,
+        "time": 51801864.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'BF', 'ML', 'MR', 'EH', 'DZ', 'LY', 'NE', 'BJ', 'NG', 'CM', 'GA', 'CG', 'CF', 'SD', 'ET', 'DJ', 'SO', 'KE', 'SS', 'CD', 'RW', 'TZ', 'ZM', 'NA', 'AO']": {
+        "success": 271,
+        "dead ends": 296236869376,
+        "time": 51816264.0
     }
 }
