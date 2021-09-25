@@ -11468,5 +11468,35 @@
         "success": 529,
         "dead ends": 301389169179,
         "time": 52757788.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE', 'TD', 'LY', 'EG', 'SD', 'ET', 'ER', 'DJ', 'SO', 'KE', 'TZ', 'MZ', 'SZ', 'ZA', 'BW', 'ZM', 'CD', 'BI', 'RW', 'UG', 'SS', 'CF', 'CG', 'GA', 'GQ', 'CM', 'NG', 'BJ']": {
+        "success": 542,
+        "dead ends": 301456125756,
+        "time": 52772188.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'NE', 'BJ', 'NG', 'TD', 'SD', 'SS', 'ET', 'DJ', 'SO', 'KE', 'TZ', 'MZ', 'ZM', 'AO', 'CD', 'RW', 'BI']": {
+        "success": 542,
+        "dead ends": 301530463322,
+        "time": 52786588.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'LY', 'NE', 'NG', 'CM', 'CG', 'CF', 'SD', 'SS', 'ET', 'KE', 'UG', 'RW', 'CD', 'BI', 'TZ', 'MZ', 'ZA', 'ZW', 'ZM', 'BW', 'NA']": {
+        "success": 542,
+        "dead ends": 301606568881,
+        "time": 52800988.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'LY', 'SD', 'TD', 'NE', 'NG', 'CM', 'GA', 'CG', 'CF', 'SS', 'CD', 'AO', 'NA', 'BW', 'ZW', 'ZA', 'MZ', 'ZM', 'TZ', 'UG', 'KE', 'SO', 'ET', 'ER']": {
+        "success": 542,
+        "dead ends": 301682570965,
+        "time": 52815388.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'TN', 'LY', 'NE', 'NG', 'CM', 'CG', 'CF', 'TD', 'SD', 'ER', 'DJ', 'SO', 'ET', 'KE', 'SS', 'UG', 'TZ', 'RW', 'CD', 'AO', 'NA', 'ZM', 'BW', 'ZA', 'ZW', 'MZ', 'MW']": {
+        "success": 542,
+        "dead ends": 301754345511,
+        "time": 52829788.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'EH', 'DZ', 'TN', 'LY', 'TD', 'CF', 'SD', 'SS', 'UG', 'KE', 'TZ', 'MW', 'ZM', 'CD', 'AO', 'NA', 'ZA', 'SZ']": {
+        "success": 542,
+        "dead ends": 301825091445,
+        "time": 52844188.0
     }
 }
