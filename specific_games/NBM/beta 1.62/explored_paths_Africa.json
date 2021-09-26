@@ -11498,5 +11498,35 @@
         "success": 542,
         "dead ends": 301825091445,
         "time": 52844188.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'DZ', 'NE', 'LY', 'TD', 'SD', 'ER', 'DJ', 'SO', 'ET', 'SS', 'KE', 'UG', 'RW', 'BI', 'TZ', 'MZ', 'ZW', 'ZM', 'BW', 'NA', 'AO', 'CD', 'CF', 'CG', 'CM', 'GA', 'GQ']": {
+        "success": 542,
+        "dead ends": 301879497200,
+        "time": 52858588.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'DZ', 'NE', 'NG', 'CM', 'TD', 'LY', 'EG', 'SD', 'ER', 'DJ', 'SO', 'KE', 'ET', 'SS', 'CF', 'CG', 'CD', 'RW', 'UG', 'TZ', 'MZ', 'MW', 'ZM', 'BW', 'ZW']": {
+        "success": 542,
+        "dead ends": 301955789373,
+        "time": 52872988.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'DZ', 'LY', 'NE', 'TD', 'CM', 'GQ', 'GA', 'CG', 'CF', 'SD', 'ER', 'DJ', 'SO', 'KE', 'UG', 'RW', 'TZ', 'MW', 'ZM', 'BW', 'ZW', 'MZ', 'ZA']": {
+        "success": 542,
+        "dead ends": 302038546388,
+        "time": 52887388.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'DZ', 'LY', 'TD', 'NG', 'CM', 'GA', 'CG', 'CF', 'CD', 'SS', 'ET', 'ER', 'DJ', 'SO', 'KE', 'UG', 'TZ', 'MW', 'MZ', 'ZM', 'BW', 'NA', 'ZA', 'ZW']": {
+        "success": 542,
+        "dead ends": 302122328172,
+        "time": 52901788.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'DZ', 'TN', 'LY', 'NE', 'TD', 'CF', 'CM', 'CG', 'CD', 'ZM', 'BW', 'ZW', 'ZA', 'SZ', 'MZ', 'MW', 'TZ', 'KE', 'SO', 'DJ', 'ET', 'SD']": {
+        "success": 542,
+        "dead ends": 302200638632,
+        "time": 52916188.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BF', 'ML', 'MR', 'DZ', 'TN', 'LY', 'TD', 'NE', 'NG', 'CM', 'GA', 'CG', 'CF', 'SD', 'ER', 'DJ', 'ET', 'KE', 'UG', 'TZ', 'BI', 'RW', 'CD', 'ZM', 'NA', 'BW', 'ZA', 'ZW', 'MZ', 'SZ']": {
+        "success": 542,
+        "dead ends": 302277099475,
+        "time": 52930588.0
     }
 }
