@@ -11443,5 +11443,35 @@
         "success": 813,
         "dead ends": 305860018215,
         "time": 53714352.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'BF', 'NE', 'TD', 'CM', 'CG', 'CF', 'SD', 'ER', 'DJ', 'SO', 'ET', 'KE', 'UG', 'RW', 'BI', 'CD', 'TZ', 'MZ', 'SZ', 'ZA', 'NA', 'BW', 'ZW']": {
+        "success": 813,
+        "dead ends": 305923593874,
+        "time": 53728752.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'BF', 'NE', 'NG', 'TD', 'CM', 'GA', 'CG', 'CD', 'ZM', 'AO', 'NA', 'BW', 'ZA', 'ZW', 'MZ', 'MW', 'TZ', 'BI', 'RW', 'UG', 'KE', 'ET', 'SO', 'DJ', 'ER', 'SD', 'LY', 'TN', 'DZ', 'EH', 'MA']": {
+        "success": 813,
+        "dead ends": 305984980814,
+        "time": 53743152.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'BF', 'NE', 'NG', 'CM', 'GQ', 'GA', 'CG', 'CF', 'TD', 'LY', 'SD', 'ER', 'ET', 'DJ', 'SO', 'KE', 'UG', 'RW', 'BI', 'CD', 'ZM', 'ZW', 'MZ', 'SZ', 'ZA', 'BW']": {
+        "success": 813,
+        "dead ends": 306046615553,
+        "time": 53757552.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'BF', 'NE', 'ML', 'DZ', 'TN', 'LY', 'TD', 'NG', 'CM', 'GQ', 'GA', 'CG', 'CF', 'SD', 'ET', 'SO', 'KE', 'TZ', 'MZ', 'ZW', 'BW', 'ZM', 'AO', 'NA', 'ZA', 'LS']": {
+        "success": 813,
+        "dead ends": 306108997863,
+        "time": 53771952.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'BF', 'NE', 'ML', 'MR', 'EH', 'MA', 'DZ', 'LY', 'EG', 'SD', 'TD', 'CM', 'GA', 'CG', 'CF', 'SS', 'ET', 'KE', 'TZ', 'BI', 'CD', 'ZM', 'MW', 'MZ', 'SZ', 'ZA', 'NA']": {
+        "success": 813,
+        "dead ends": 306165792465,
+        "time": 53786352.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'BF', 'NE', 'ML', 'MR', 'EH', 'DZ', 'LY', 'TD', 'NG', 'CM', 'GA', 'CG', 'CF', 'CD', 'RW', 'UG', 'SS', 'ET', 'KE', 'TZ', 'MW', 'MZ', 'ZM', 'BW', 'NA', 'ZA', 'SZ']": {
+        "success": 854,
+        "dead ends": 306226040379,
+        "time": 53800752.0
     }
 }
