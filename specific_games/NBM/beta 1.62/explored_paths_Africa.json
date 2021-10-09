@@ -11439,34 +11439,19 @@
         "dead ends": 306370793437,
         "time": 53830196.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'DZ']": {
-        "success": 854,
-        "dead ends": 306449374483,
-        "time": 53843356.0
-    },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'LY']": {
-        "success": 854,
-        "dead ends": 306488665017,
-        "time": 53849640.0
-    },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'TD']": {
-        "success": 854,
-        "dead ends": 306546710083,
-        "time": 53861420.0
-    },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'NG']": {
-        "success": 854,
-        "dead ends": 306636073930,
-        "time": 53884708.0
-    },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'BF']": {
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE']": {
         "success": 895,
-        "dead ends": 306950398052,
-        "time": 53957520.0
+        "dead ends": 307264722216,
+        "time": 54024544.0
     },
-    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NE', 'ML', 'DZ', 'TN', 'LY', 'SD', 'ET', 'SO', 'KE', 'SS', 'UG', 'RW', 'TZ', 'MW', 'MZ', 'SZ', 'ZA', 'NA', 'AO', 'ZM', 'CD', 'CF', 'CG', 'GA', 'CM']": {
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NG', 'NE', 'TD', 'CM', 'CG', 'CF', 'SD', 'SS', 'CD', 'AO', 'NA', 'ZM', 'ZW', 'ZA', 'MZ', 'TZ', 'KE', 'ET', 'ER']": {
         "success": 895,
-        "dead ends": 307015580180,
-        "time": 53971920.0
+        "dead ends": 307346413036,
+        "time": 54038944.0
+    },
+    "['GM', 'SN', 'GW', 'GN', 'SL', 'LR', 'CI', 'GH', 'TG', 'BJ', 'NG', 'NE', 'BF', 'ML', 'DZ', 'TN', 'LY', 'TD', 'CM', 'GQ', 'GA', 'CG', 'CF', 'CD', 'AO', 'NA', 'ZM', 'BW', 'ZA', 'SZ', 'MZ', 'TZ', 'BI', 'RW', 'UG', 'KE', 'SO', 'ET', 'ER', 'SD', 'EG']": {
+        "success": 895,
+        "dead ends": 307411920319,
+        "time": 54053344.0
     }
 }
