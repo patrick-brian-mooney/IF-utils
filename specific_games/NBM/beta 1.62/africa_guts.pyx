@@ -207,7 +207,7 @@ cpdef find_path_from(starting_point: str, path_so_far: list=None):
     solution. If it finds one, it prints it. If there are no so-far-unvisited exits
     from STARTING_POINT, it just returns, allowing other branches to be explored.
 
-    Because the script takes an incredibly long time to run (weeks!), it tracks how
+    Because the script takes an incredibly long time to run (years!), it tracks how
     much partial progress it's made: it groups all possible paths into "strands"
     that start with paths of PATH_LENGTH_TO_TRACK (initially 6). That is, for each
     "strand" of paths starting with a known particular starting sequence of length 6
@@ -250,7 +250,8 @@ cpdef find_path_from(starting_point: str, path_so_far: list=None):
         pretty_print(' -> '.join(path_so_far))
         print('\n')
         with open(successful_paths_file, mode="at") as success_file:
-            success_file.write('path #%d (%.3f seconds): %s \n' % (successful_paths, time_so_far(), ' -> '.join(path_so_far)), '\n\n')
+            write_text = 'path # %d (%.3f seconds): %s \n\n\n' % (successful_paths, time_so_far(), ' -> '.join(path_so_far))
+            success_file.write(write_text)
         return
 
     possible_steps = [s for s in borders[starting_point] if s not in path_so_far]
@@ -261,8 +262,8 @@ cpdef find_path_from(starting_point: str, path_so_far: list=None):
         dead_end_paths += 1
         if dead_end_paths % 1000000 == 0:
             how_long = time_so_far()/3600
-            print('  (%.3f billion dead-end paths so far, in %.2f hours [or %.3f days])' % (dead_end_paths / 1000000000,
-                                                                                            how_long, how_long/24))
+            print('  (%.3f billion dead-end paths (and %d successes) so far, in %.2f hours [or %.3f days, or %.3f years])' %
+                  (dead_end_paths / 1000000000, successful_paths, how_long, how_long/24, how_long / (24 * 365.25)))
 
     if (len(path_so_far) <= path_length_to_track) and (str(path_so_far) not in explored_paths):                      #
         # Document we've finished this path, if it's at most the right length.

@@ -49,6 +49,7 @@ def processUSR1(*args, **kwargs) -> None:
     print("    dead end paths:       ", ag.dead_end_paths)
     print("    total time:            %.3f hours" % (ag.time_so_far() / 3600))
     print("                           %.3f days" % (ag.time_so_far() / (24 * 3600)))
+    print("                           %.3f years" % (ag.time_so_far() / (24 * 3600 * 365.25)))
     print("    time since last save:  %.3f minutes" % ((datetime.datetime.now() - ag.last_save_time).total_seconds() / 60))
     print("\n")
 
@@ -59,14 +60,18 @@ def processUSR2(*args, **kwargs) -> None:
     In point of fact, we don't save the current status here. We merely set a global
     flag that will cause the current status to be saved when the current node,
     wherever that happens to be when the signal is caught, is completely evaluated.
-    This involves solve_maze() recursively calling itself more times, perhaps many
-    more, though usually the current status winds up being saved relatively quickly,
-    because the algorithm actually spends most of its time tracing through top-level
-    branches with a lot of nearby leaf nodes. There is no guarantee of this,
-    however. It depends on where the algorithm is when the signal is caught.
+    "Completely evaluting" a node involves calling solve_maze() recursively calling
+    itself more times, perhaps many more, until the current node and all of its 
+    descendants have been fully explored. (Though this often takes very little time,
+    and usually the current status winds up being saved relatively quickly, because
+    the algorithm actually spends most of its time tracing through top-level branches
+    with a lot of nearby leaf nodes. There is no guarantee of this, however. It
+    depends on where the algorithm is when the signal is caught.)
 
     Note that "saving progress" in this way is better than nothing, but doesn't
-    guarantee that NO work will have to be re-performed on the next run.
+    guarantee that NO work will have to be re-performed on the next run. In any
+    case, poking this script with the USR2 signal can cause some ugly problems and
+    is not recommended.
     """
     ag.force_save_after_next_node = True
     print("Caught USR2 signal at %s, scheduling progress save ..." % datetime.datetime.now())
