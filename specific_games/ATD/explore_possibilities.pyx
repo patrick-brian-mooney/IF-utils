@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#cython: language_level=3
 """A quick hack to explore the possibility space in All Things Devours, a piece
 of interactive fiction published by Toby Ord (under the name "half sick of
 shadows") in 2004. ATD is a tight little puzzle game involving time-travel;
@@ -896,7 +897,7 @@ class TerpConnection(object):
         we can tell what room that is; otherwise, return a string indicating we don't
         know.
         """
-        return self.context_history['room'] if ('room' in self.context_history) else ['unknown']
+        return self.context_history['room'] if ('room' in self.context_history) else '[unknown]'
 
     @property
     def last_command(self) -> str:
@@ -1450,3 +1451,7 @@ def set_up() -> None:
 def main():
     set_up()
     play_game()
+
+if __name__ == "__main__":
+    print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
+    sys.exit(1)

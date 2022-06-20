@@ -7,3 +7,8 @@ specific_games/NBM/beta 1.62/build
 *.c
 *.so
 env/
+bin/
+lib/
+lib64
+specific_games/ATD/[2004] All Things Devours
+specific_games/ATD/build/
