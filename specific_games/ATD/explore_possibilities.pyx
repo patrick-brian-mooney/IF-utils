@@ -38,6 +38,7 @@ import os
 
 from pathlib import Path
 
+import pickle
 import pprint
 import queue
 import random
@@ -668,10 +669,13 @@ def clean_progress_data() -> None:
     of length 4 or less.
     """
     global progress_data
+    begin = time.monotonic()
     pruned_dict = {k: v for k, v in progress_data.items() if (k.count('.') <= 4) or (not is_redundant_strand(k))}
     if pruned_dict != progress_data:
-        debug_print("(pruned redundant data from the data store)", 3)
+        debug_print(f"  (pruned redundant data from the data store in {time.monotonic() - begin} seconds)", 3)
         progress_data = pruned_dict
+    else:
+        debug_print(f"  (found now redundant data in the data store in {time.monotonic() - begin} seconds)", 3)
 
 
 def document_problem(problem_type: str,
@@ -776,6 +780,97 @@ class NonBlockingStreamReader(object):
         return ret
 
 
+class MetadataWriter(threading.Thread):
+    """A class whose objects can be created and run as threads to write data to disk
+    while returning control to the main program thread. Keeps a queue of data
+    waiting to be written; if new data comes in faster than it can be written out,
+    older data is abandoned. Since we really only want to write the most recent data
+    (plus the second-most-recent data as the .bak file), this helps to ensure
+    that we do not queue up thousands of changes that are written only to be
+    overwritten later.
+
+    To use, create a new object, save a reference to it in the parent object, and
+    call its run() method. Initializing the object requires a reference to the
+    parent TerpConnection, plus the data to be written (a JSON-serialized stream).
+    While the runner is running, data can be appended to its queue from the main
+    program thread (or any other thread, really). The thread will keep running until
+    the queue is empty, at which time the thread quits, blanking out the reference
+    to it that the parent_window object holds. Creation and running of threads are
+    abstracted away by the TerpConnection's .write_data() method, which handles the
+    whole writing kerfuffle.
+    """
+    _max_writing_queue_length = 3      # Maximum number of to-write objects tracked.
+
+    def __init__(self, parent: 'TerpConnection',
+                 data: typing.Optional[dict] = None):
+        if data:
+            assert isinstance(data, dict)
+        threading.Thread.__init__(self)
+        self.parent = parent
+        self.to_write = list()          # Unlikely ever to grow all that long, so performance shouldn't be an issue.
+        self.mutex = threading.Lock()
+        if data:
+            self.queue_for_write(data)
+
+    def queue_for_write(self, data: dict) -> None:
+        """Adds DATA (a structured file record) to the to-write queue. We pickle it on
+        adding, then unpickle right before writing, because we want a snapshot of the
+        data when it enters the queue, not a reference to data that may continue to
+        change, including right while we're serializing it to JSON. Queueing a pickled
+        snapshot ensures we're getting a copy of the data, not a reference to it.
+
+        JSON encoding is done by the _write method because it is relatively slow, and
+        doing that in the background helps to keep the process responsive when dealing
+        with large files.
+
+        Along with the data itself and the completion notification function, we also
+        queue a string representing the current time, which helps when overlooking the
+        process during debugging.
+        """
+        debug_print(f"    (queueing checkpoint data for saving, waiting to acquire lock ...)", min_level=4)
+        with self.mutex:
+            debug_print(f"    (lock aquired ...)", min_level=5)
+            self.to_write.append((pickle.dumps(data, protocol=-1), datetime.datetime.now().isoformat(' ')))
+            if len(self.to_write) > self._max_writing_queue_length:  # Grown too long? Just keep most recent entries.
+                sorted_queue = sorted(self.to_write, key=lambda i: i[1])
+                debug_print(f"      (pruning save queue ... there are {len(sorted_queue)} entries queued from {sorted_queue[0][2]} to {sorted_queue[-1][2]})", min_level=3)
+                self.to_write = self.to_write[-self._max_writing_queue_length:]
+                sorted_queue = sorted(self.to_write, key=lambda i: i[1])
+                debug_print(f"        (... sorted! Queue now contains {len(sorted_queue)} entries, queued from {sorted_queue[0][2]} to {sorted_queue[-1][2]})", min_level=3)
+            debug_print(f"    (checkpoint data queued)", min_level=4)
+
+    def _write(self) -> None:
+        """Writes the data that is waiting to be written to disk.
+        """
+        while self.to_write:
+            fname = None
+            while (fname is None) or (fname.exists()):
+                fname = progress_checkpoint_file.with_name(str(uuid.uuid4()))
+            try:
+                try:
+                    with self.mutex:
+                        data = self.to_write.pop(0)
+                except (IndexError,):   # Shouldn't be popping from an empty list: we're the only thread removing data
+                    continue            # from the to_write queue. Still, be careful anyway.
+                debug_print(f"    (writing individual checkpoint file with temporary name {fname})", min_level=4)
+                with open(fname, 'wt') as metadata_file:
+                    metadata_file.write(json.dumps(pickle.loads(data[0]), indent=2, default=str))
+                if progress_checkpoint_file.exists():
+                    new_name = Path(str(progress_checkpoint_file) + '.bak')
+                    progress_checkpoint_file.rename(new_name)
+                fname.rename(progress_checkpoint_file)
+            except (Exception,) as errrr:
+                safe_print(f"Unable to write file during checkpointing save! The system said: {errrr}")
+            finally:
+                if fname.exists():  # If we got this far and the temp file still exists, delete it.
+                    fname.unlink()
+        debug_print(f"    (all queued checkpoint files written!)", min_level=2)
+        self.parent.checkpoint_writer = None
+
+    def run(self) -> None:
+        self._write()
+
+
 class TerpConnection(object):
     """Maintains a connection to a running instance of a 'terp executing ATD. Also
     maintains a connection to the nonblocking reader that wraps its stdout stream.
@@ -786,8 +881,9 @@ class TerpConnection(object):
     def __init__(self):
         """Opens a connection to a 'terp process that plays ATD. Saves a reference to that
         process. Wraps its STDOUT stream in a nonblocking wrapper. Saves a reference to
-        that wrapper. Initializes the command-history data structure.
+        that wrapper. Initializes the command-history data structure. DOes other setup.
         """
+        self.checkpoint_writer = None
         parameters = [str(interpreter_location)] + interpreter_flags + [str(story_file_location)]
         self._proc = subprocess.Popen(parameters, shell=False, universal_newlines=True, bufsize=1,
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -973,10 +1069,14 @@ class TerpConnection(object):
         }
 
         if (datetime.datetime.now() - last_checkpoint_time).seconds >= minimum_checkpointing_interval:
-            debug_print("(saving algorithm progress data.)", 2)
+            debug_print("(preparing to save algorithm progress data.)", 2)
             clean_progress_data()
-            with open(progress_checkpoint_file, mode='wt') as pc_file:
-                json.dump(progress_data, pc_file, default=str, indent=2)
+
+            try:
+                self.checkpoint_writer.queue_for_write(data=progress_data)
+            except (AttributeError,):       # self.checkpoint_writer is None? Create a new one.
+                self.writer = MetadataWriter(parent=self, data=progress_data)
+                self.writer.start()
             last_checkpoint_time = datetime.datetime.now()
 
     def _pass_command_in(self, command: str) -> None:
