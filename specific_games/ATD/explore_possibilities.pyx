@@ -22,7 +22,7 @@ there couldn't be room for THAT MANY simultaneous copies moving around the map
 at the same time.) (N.B. Or rather, it will, once the initial run with the
 unmodified copy has been completed.)
 
-This script is copyright 2019-21 by Patrick Mooney. It is released under the
+This script is copyright 2019-22 by Patrick Mooney. It is released under the
 GPL, either version 3 or (at your option) any later version. See the file
 LICENSE for a copy of this license.
 """
@@ -615,10 +615,25 @@ all_commands = {
 
 
 # Now that we've specified the data and some basic handling methods ... here are some utility routines.
+print_mutex = threading.Lock()
+def safe_print(*args, **kwargs) -> None:
+    """Print safely, i.e. in a way that ensures multiple threads aren't trying to print
+    at the same time and stepping on each other's output.
+    """
+    with print_mutex:
+        print(*args, **kwargs)
+
+
+def safe_pprint(*args, **kwargs) -> None:
+    """Same as safe_print, but safely pprints instead of printing."""
+    with print_mutex:
+        pprint.pprint(*args, **kwargs)
+
+
 def debug_print(what: str, min_level: int=1) -> None:
     """Print WHAT, if the global VERBOSITY is at least MIN_LEVEL."""
     if verbosity >= min_level:
-        print(" " * min_level + what)       # Indent according to unimportance level.
+        safe_print(" " * min_level + what)       # Indent according to unimportance level.
 
 
 def get_total_time() -> float:
@@ -689,8 +704,8 @@ def document_problem(problem_type: str,
         found = not p.exists()
     p.write_text(json.dumps(data, indent=2, default=str, sort_keys=True))
     if also_print:
-        print("PROBLEM TYPE: " + problem_type + '\n\nData:\n')
-        pprint.pprint(data)
+        safe_print("PROBLEM TYPE: " + problem_type + '\n\nData:\n')
+        safe_pprint(data)
 
 
 # Here's a utility class used to wrap an output stream for the TerpConnection, below.
@@ -1074,7 +1089,7 @@ class TerpConnection(object):
         """Convenience function: execute the LOOK command in the 'terp, print the results,
         and undo the command.
         """
-        print(self.process_command_and_return_output('look'))
+        safe_print(self.process_command_and_return_output('look'))
         if not self.UNDO():
             debug_print('WARNING: unable to undo LOOK command!', 2)
 
@@ -1094,7 +1109,7 @@ class TerpConnection(object):
         """Convenience wrapper: print the current inventory to the console, then undo the
         in-game action.
         """
-        print(self._get_inventory())
+        safe_print(self._get_inventory())
 
     def Y(self, be_patient=False) -> None:
         """Sends a Y ("yes") command to the 'terp."""
@@ -1194,7 +1209,7 @@ class TerpConnection(object):
 
 
 terp_proc = TerpConnection()
-print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
+safe_print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
 
 
 def execute_command(command: str) -> typing.Dict:           # FIXME: Containing what?
@@ -1293,7 +1308,7 @@ def make_moves(depth: int = 0) -> None:
                 elif new_context['failed']:
                     dead_ends += 1
                 elif new_context['success']:
-                    print('Command %s won! Recording ...' % c)
+                    safe_print('Command %s won! Recording ...' % c)
                     record_solution()
                     successes += 1
                     time.sleep(5)   # Let THAT sit there on the debugging screen for a few seconds.
@@ -1307,7 +1322,7 @@ def make_moves(depth: int = 0) -> None:
                 moves += 1
                 total = dead_ends + successes
                 if (total % 1000 == 0) or ((verbosity >= 2) and (total % 100 == 0)) or ((verbosity >= 4) and (total % 20 == 0)):
-                    print(f"Explored {total} complete paths so far, making {moves} total moves in %.2f hours" % (get_total_time()/3600))
+                    safe_print(f"Explored {total} complete paths so far, making {moves} total moves in %.2f hours" % (get_total_time()/3600))
                 terp_proc._restore_terp_to_save_file(starting_frame['checkpoint'])
                 terp_proc._drop_history_frame()
     if len(terp_proc.context_history.maps) % 4 == 0:
@@ -1325,13 +1340,13 @@ def processUSR1(*args, **kwargs) -> None:
     """Handle the USR1 signal by cycling through available debugging verbosity levels."""
     global verbosity
     verbosity = (verbosity + 1) % (1 + maximum_verbosity_level)
-    print("\nDebugging verbosity changed to %d" % verbosity)
+    safe_print("\nDebugging verbosity changed to %d" % verbosity)
 
 
 def processUSR2(*args, **kwargs) -> None:
     """Handle the USR2 signal printing the current progress, then pausing for a moment."""
-    print("\nCurrent path is:\n" + terp_proc.text_walkthrough)
-    print("\n\n")
+    safe_print("\nCurrent path is:\n" + terp_proc.text_walkthrough)
+    safe_print("\n\n")
     time.sleep(2)
 
 
@@ -1339,12 +1354,12 @@ def processSigInt(*args, **kwargs):
     """When ctrl-C is pushed or SIGINT is otherwise received, clean up gracefully.
     """
     try:
-        print("Caught Ctrl-C or other SIGINT; cleaning up ...")
+        safe_print("Caught Ctrl-C or other SIGINT; cleaning up ...")
         terp_proc._clean_up()
         time.sleep(2)
     except NameError:           # If we're getting here without having set everything up, then just bail.
         pass
-    print()
+    safe_print()
     sys.exit(0)
 
 
@@ -1358,7 +1373,7 @@ def validate_directory(p: Path, description: str) -> None:
         assert p.is_dir(), "ERROR: %s exists, but is not a directory!" % p
     else:
         p.mkdir()
-        print("    successfully created %s directory %s" % (description, shlex.quote(str(p))))
+        safe_print("    successfully created %s directory %s" % (description, shlex.quote(str(p))))
 
 
 def empty_save_files() -> None:
@@ -1413,9 +1428,9 @@ def load_progress_data() -> None:
             successes = max([t['successes'] for t in progress_data.values()])
             moves = max([t['total moves'] for t in progress_data.values()])
             maximum_walkthrough_length = max([t['maximum walkthrough length'] for t in progress_data.values()])
-        print("Successfully loaded previous progress data!")
+        safe_print("Successfully loaded previous progress data!")
     except Exception as errr:                   # Everything was initialized up top, anyway.
-        print("Can't restore progress data: starting from scratch!")
+        safe_print("Can't restore progress data: starting from scratch!")
         debug_print("Exception causing inability to read previous data: %s" % errr, 1)
 
 
@@ -1453,5 +1468,5 @@ def main():
     play_game()
 
 if __name__ == "__main__":
-    print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
+    safe_print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
     sys.exit(1)
