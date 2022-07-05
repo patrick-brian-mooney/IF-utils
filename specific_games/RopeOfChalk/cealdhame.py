@@ -44,29 +44,29 @@ import typing
 
 
 pathways = {
-    1:  [2, 6],
-    2:  [1, 6, 7, 3],
-    3:  [2, 7, 8, 4],
-    4:  [3, 8, 9, 5],
-    5:  [4, 9],
-    6:  [1, 2, 7, 11, 10],
-    7:  [2, 3, 8, 12, 11, 6],
-    8:  [7, 3, 4, 9, 13, 12],
-    9:  [8, 4, 5, 14, 13],
-    10: [6, 11, 15],
-    11: [10, 6, 7, 12, 15, 16],
-    12: [11, 7, 8, 13, 17, 16],
-    13: [12, 8, 9, 14, 18, 17],
-    14: [13, 9, 18],
-    15: [10, 11, 16, 20, 19],
-    16: [15, 11, 12, 17, 21, 20],
-    17: [16, 12, 13, 18, 22, 21],
-    18: [13, 14, 23, 22, 17],
-    19: [15, 20],
-    20: [19, 15, 16, 21],
-    21: [20, 16, 17, 22],
-    22: [21, 17, 18, 23],
-    23: [18, 22],
+    1:  (2, 6),
+    2:  (1, 6, 7, 3),
+    3:  (2, 7, 8, 4),
+    4:  (3, 8, 9, 5),
+    5:  (4, 9),
+    6:  (1, 2, 7, 11, 10),
+    7:  (2, 3, 8, 12, 11, 6),
+    8:  (7, 3, 4, 9, 13, 12),
+    9:  (8, 4, 5, 14, 13),
+    10: (6, 11, 15),
+    11: (10, 6, 7, 12, 15, 16),
+    12: (11, 7, 8, 13, 17, 16),
+    13: (12, 8, 9, 14, 18, 17),
+    14: (13, 9, 18),
+    15: (10, 11, 16, 20, 19),
+    16: (15, 11, 12, 17, 21, 20),
+    17: (16, 12, 13, 18, 22, 21),
+    18: (13, 14, 23, 22, 17),
+    19: (15, 20),
+    20: (19, 15, 16, 21),
+    21: (20, 16, 17, 22),
+    22: (21, 17, 18, 23),
+    23: (18, 22),
 }
 
 all_paths = set()                                                               # Will be expanded later, in initialization routines.
@@ -89,10 +89,10 @@ progress_data_path = script_location / 'cealdhame_progress.json'
 save_interval = 15 * 60                                                         # Minimum number of seconds between "discretionary" saves.
 
 
-
 # Utility functions.
 def total_time() -> float:
-    """Get the total time since the run started."""
+    """Get the total time since the run started.
+    """
     return (datetime.datetime.now() - run_start).total_seconds()
 
 
@@ -121,7 +121,7 @@ def prune_exhausted_paths(list_of_paths: typing.List[typing.Tuple[int, int]]) ->
     return ret
 
 
-def save_progress(discretionary: bool=False) -> None:
+def save_progress(discretionary: bool = False) -> None:
     """Save the progress data so that we can restore it on subsequent runs. If
     DISCRETIONARY is True, the routine skips the save if we've performed a save
     recently, i.e. within the last SAVE_INTERVAL seconds.
@@ -149,7 +149,8 @@ def save_progress(discretionary: bool=False) -> None:
 
 
 def restore_progress() -> None:
-    """Restore progress data from the progress file, if there is one."""
+    """Restore progress data from the progress file, if there is one.
+    """
     global progress_data, run_start
 
     if not progress_data_path.exists():  # Nothing to restore!
@@ -190,13 +191,15 @@ def _flatten_list(l: typing.Iterable) -> typing.Generator[int, None, None]:
 
 
 def flatten_list(l: typing.Iterable) -> typing.List:
-    """Wraps _flatten_list so it returns a list rather than a generator."""
+    """Wraps _flatten_list so it returns a list rather than a generator.
+    """
     return list(_flatten_list(l))
 
 
 # Startup checks and pre-computation.
 def validate_data() -> None:
-    """Perform basic sanity checks to detect data entry errors in the data above."""
+    """Perform basic sanity checks to detect data entry errors in the data above.
+    """
     for start in pathways:
         assert start in set(flatten_list(pathways.values()))        # Ensure at least one pathway leads to this data.
         for end in pathways[start]:
@@ -207,7 +210,8 @@ def validate_data() -> None:
 
 
 def compute_paths() -> None:
-    """Set up the global variable ALL_PATHS."""
+    """Set up the global variable ALL_PATHS.
+    """
     global all_paths
     for start in pathways:
         for end in pathways[start]:
@@ -215,14 +219,16 @@ def compute_paths() -> None:
 
 
 def set_up() -> None:
-    """Perform setup tests."""
+    """Perform setup tests.
+    """
     validate_data()
     compute_paths()
     restore_progress()
 
 
 def bump_failures() -> None:
-    """Increase the failure count. Print a notice if the number is right to do so."""
+    """Increase the failure count. Print a notice if the number is right to do so.
+    """
     global failures
     progress_data['failures'] += 1
     if (progress_data['failures'] % 100000) == 0:
@@ -230,12 +236,13 @@ def bump_failures() -> None:
 
 
 # Actual solution to the problem.
-def solve_from(current_location: int, steps_taken: typing.List[typing.Tuple[int, int]]=list()) -> None:
+cdef solve_from(current_location: int,
+                steps_taken: typing.List[typing.Tuple[int, int]]) -> None:
     """Given CURRENT_LOCATION, our current location, and STEPS_TAKEN, a list of
     previous moves, iterate over all possible remaining moves, i.e. those that begin
     in our current location and have not yet been taken, iterate over all possible
     moves. Calls itself repeatedly to explore every possible path, terminating a
-    path's investigation when it dead-ends, and printing solutions to STDOUT
+    path's investigation when it dead-ends, and printing solutions to STDOUT.
     """
     global progress_data
 
@@ -272,3 +279,7 @@ def wrap_up() -> None:
     print(f"Run finished!\n{len(progress_data['solutions_found'])} solutions found!\n{failures} dead-end paths!")
 
 
+def solve() -> None:
+    set_up()
+    solve_from(12, list())
+    wrap_up()

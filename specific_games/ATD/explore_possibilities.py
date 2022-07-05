@@ -744,7 +744,7 @@ class NonBlockingStreamReader(object):
         self._t.daemon = True
         self._t.start()             # start collecting lines from the stream
 
-    def readline(self, timeout=None) -> str:
+    def readline(self, timeout=None) -> typing.Union[str, None]:
         """Returns the next line in the buffer, if there are any; otherwise, returns None.
         Waits up to TIMEOUT seconds for more data before returning None. If TIMEOUT is
         None, blocks until there IS more data in the buffer. Does not do any decoding.
@@ -916,6 +916,8 @@ class TerpConnection(object):
         """
         debug_print("Cleaning up the 'terp connection.", 2)
         self.QUIT()
+        if self.checkpoint_writer:
+            self.checkpoint_writer.join()
         self._proc.stdin.close()
         self._proc.terminate()
         self._reader._quit = True
