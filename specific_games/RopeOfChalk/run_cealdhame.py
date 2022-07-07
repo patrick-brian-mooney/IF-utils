@@ -17,6 +17,4 @@ import cealdhame
 
 if __name__ == "__main__":
     print("Beginning run!")
-    cealdhame.set_up()
-    cealdhame.solve_from(12)
-    cealdhame.wrap_up()
+    cealdhame.solve()
