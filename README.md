@@ -24,7 +24,7 @@ Usage: `check_anagram.py "a phrase" "another phrase" [...]`
 
 
 ## `transcript_utils/visual_transcript/`
-A series of scripts intended to help process postprocess screencast videos of textual IF when standard transcripting is not possible. Run in numerical order to create a series of frames as `.png` files that have had duplicate frames largely removed from short sequences.
+A series of scripts intended to help postprocess screencast videos of textual IF when standard transcripting is not possible. Run in numerical order to create a series of frames as `.png` files that have had duplicate frames largely removed from short sequences.
 
 
 ## `specific_games/`

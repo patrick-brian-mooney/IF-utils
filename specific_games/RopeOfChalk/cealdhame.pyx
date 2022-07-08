@@ -43,21 +43,20 @@ import string
 import time
 
 
-exhausted_paths = set()                                         # of strings
-successful_paths = dict()                                       # mapping movement-strings to list of movement-tuples
-failures = 0
+cdef set exhausted_paths = set()                                # of strings
+cdef dict successful_paths = dict()                             # mapping movement-strings to list of movement-tuples
+cdef int failures = 0
 
-last_save = time.monotonic()
-run_start = time.monotonic()
-last_save = 0.0
+cdef float last_save = time.monotonic()
+cdef float run_start = time.monotonic()
 
 progress_data_path = Path(__file__).parent / 'cealdhame_progress.dat'
-save_interval = 15 * 60                                         # in seconds
-checkpoint_interval = 8            # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8"
+cdef int save_interval = 15 * 60                                # in seconds
+cdef int checkpoint_interval = 8    # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8"
 
 
 # Basic data: which spaces, by number, can you move to from each space?
-pathways = {
+cdef dict pathways = {
     1:  (2, 6),
     2:  (1, 6, 7, 3),
     3:  (2, 7, 8, 4),
@@ -83,15 +82,20 @@ pathways = {
     23: (18, 22),
 }
 
-border_locations = {1, 2, 3, 4, 5, 9, 14, 18, 23, 22, 21, 20, 19, 15, 10, 6}
+cdef set border_locations = {1, 2, 3, 4, 5, 9, 14, 18, 23, 22, 21, 20, 19, 15, 10, 6}
 
 
 # Now, massage the data into an easier-to-deal-with form by creating a set of 2-tuples representing the various paths.
-all_paths = set()
+cdef set all_paths = set()
 
 
 def expand_paths():
+    cdef:
+        int k, dest
+        tuple v
+
     global all_paths
+
     for k, v in pathways.items():
         for dest in v:
             all_paths.add(tuple(sorted((k, dest))))
@@ -107,21 +111,23 @@ label_to_path = {v: k for k, v in path_to_label.items()}
 
 
 # Some utility functions.
-def total_run_time() -> float:
+cdef inline float total_run_time() except *:
     """Get the total time since the run started.
     """
     return time.monotonic() - run_start
 
 
-def time_since_last_save() -> float:
+cdef inline float time_since_last_save():
     """Return the number of seconds since a save last happened."""
     return time.monotonic() - last_save
 
 
-def do_save() -> None:
+# utilities to save and restore progress-status data.
+cdef void do_save() except *:
     """Save the data necessary to preserve the global state so that we can start from
     this place on the next run.
     """
+    cdef dict data
     global last_save
 
     data = {
@@ -137,9 +143,10 @@ def do_save() -> None:
     last_save = time.monotonic()
 
 
-def do_restore_data() -> None:
+def do_restore_data():
     """Restore the state data to the global variables tracking it.
     """
+    cdef dict data
     global exhausted_paths, successful_paths, failures, run_start
 
     try:
@@ -156,8 +163,8 @@ def do_restore_data() -> None:
     run_start = time.monotonic() - data['runtime']
 
 
-def prune_and_save(steps_taken: str,                            # inline me!
-                   discretionary: bool = True) -> None:
+cdef inline void prune_and_save(str steps_taken,
+                                bint discretionary = True) except *:
     """Checks to see whether the global list of EXHAUSTED_PATHS needs to be pruned,
     based on the list of STEPS_TAKEN. If the length of STEPS_TAKEN is (a) less than
     the global constant CHECKPOINT_INTERVAL, or (b) a multiple of it, then the
@@ -171,6 +178,9 @@ def prune_and_save(steps_taken: str,                            # inline me!
     If DISCRETIONARY is False, the "check" step is skipped, and pruning and saving
     definitely happens; this is sometimes handy when saving.
     """
+    cdef:
+        set pruned
+        str exh_p, known_key
     global exhausted_paths
 
     if discretionary:
@@ -191,13 +201,15 @@ def prune_and_save(steps_taken: str,                            # inline me!
     do_save()
 
 
-def is_exhausted(path: str) -> bool:                # inline me!
+cdef inline bint is_exhausted(str path) except *:
     """Check if PATH is excluded from exploration on the basis of being already fully
     explored, or else a path that depends on having been already fully explored.
 
     This can probably be optimized further by taking CHECKPOINT_INTERVAL into
     account.
     """
+    cdef int i
+
     if path in exhausted_paths:
         return True
     for i in range(len(path) - 1):
@@ -206,7 +218,7 @@ def is_exhausted(path: str) -> bool:                # inline me!
     return False
 
 
-def is_victory(path: str) -> bool:                  # inline me!
+cdef inline bint is_victory(str path) except *:                  
     """Check to see if (a) we've hit every path, and (b) our last step finished on an
     outside square. Also perform the basic sanity check of making sure we didn't
     traverse any path twice. If all of this is true, returns True; otherwise False.
@@ -221,7 +233,7 @@ def is_victory(path: str) -> bool:                  # inline me!
     return True
 
 
-def handle_victory(path: str) -> None:
+cdef void handle_victory(str path) except *:
     """Announce a victory, print it to the screen, and record it in the global
     SUCCESSFUL_PATHS variable. Then force a save.
     """
@@ -233,10 +245,10 @@ def handle_victory(path: str) -> None:
     do_save()
 
 
-def bump_failures():                # inline me!
+cdef inline void bump_failures() except *:                
     """Increase the failure count. Print a notice if the number is right to do so.
     """
-    global failures, successful_paths
+    global failures
 
     failures += 1
     if (failures % 100000) == 0:
@@ -244,14 +256,19 @@ def bump_failures():                # inline me!
 
 
 # The actual problem solution.
-def solve_from(current_location: int,
-               steps_taken: str) -> None:
+cdef void solve_from(int current_location,
+                     str steps_taken) except *:
     """Given CURRENT_LOCATION, our current location, and STEPS_TAKEN, a list of
     previous moves, iterate over all possible remaining moves, i.e. those that begin
     in our current location and have not yet been taken, iterate over all possible
     moves. Calls itself repeatedly to explore every possible path, terminating a
     path's investigation when it dead-ends, and printing solutions to STDOUT.
     """
+    cdef:
+        list possible_moves, possible_paths, next_moves
+        tuple path
+        int m
+        str label
     global exhausted_paths
 
     if is_victory(steps_taken):
@@ -286,4 +303,4 @@ def solve_from(current_location: int,
 def solve() -> None:
     print("\n\n\nStarting up ...")
     do_restore_data()
-    solve_from(12, '')
+    solve_from(current_location=12, steps_taken='')

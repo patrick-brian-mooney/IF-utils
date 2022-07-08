@@ -11,7 +11,7 @@ is released under the GNU GPL, either version 3 or (at your option) any other
 version. See the file LICENSE.md for details.
 """
 
-import pyximport; pyximport.install()
+import pyximport; pyximport.install(build_dir="/home/patrick/Documents/programming/python_projects/IF utils/specific_games/RopeOfChalk/optimization")
 
 import cealdhame
 
