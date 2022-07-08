@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#cython: language_level=3
 """A quick hack to explore a tangential issue in Ryan Veeder's A Rope of Chalk
 (an IFComp 2020 game). The question is not essential to the game but caught my
 attention anyway: Is it possible to move through the realm of Cealdhame, a
@@ -24,26 +26,37 @@ those spaces NE, NW, SE, SW.
 Again, the game makes no effort to get the player to notice this question, but
 I'm curious anyway.
 
-This quick Python 3.X hack is copyright 2020 by Patrick Mooney. It is part of
-Patrick Mooney's IF Utils, all of which are released under the GPL, either
+This quick Python 3.X hack is copyright 2020-22 by Patrick Mooney. It is part
+of Patrick Mooney's IF Utils, all of which are released under the GPL, either
 version 3 or, at your option, any later version. See the file LICENSE.md for
 details.
 """
 
-#FIXME: Important! This is known to grow slow quite quickly. I'll take a look at it as soon as I can, but that's not this week.
-
 
 import bz2
 import collections
-import datetime
-import pickle
 
 from pathlib import Path
 
+import pickle
+import string
 import time
-import typing
 
 
+exhausted_paths = set()                                         # of strings
+successful_paths = dict()                                       # mapping movement-strings to list of movement-tuples
+failures = 0
+
+last_save = time.monotonic()
+run_start = time.monotonic()
+last_save = 0.0
+
+progress_data_path = Path(__file__).parent / 'cealdhame_progress.dat'
+save_interval = 15 * 60                                         # in seconds
+checkpoint_interval = 8            # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8"
+
+
+# Basic data: which spaces, by number, can you move to from each space?
 pathways = {
     1:  (2, 6),
     2:  (1, 6, 7, 3),
@@ -70,217 +83,207 @@ pathways = {
     23: (18, 22),
 }
 
-cdef set all_paths = set()                                                      # Will be expanded later, in initialization routines.
-
-cdef set border_locations = {1, 2, 3, 4, 5, 9, 14, 18, 23, 22, 21, 20, 19, 15, 10, 6}
-cdef int checkpoint_interval = 8            # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8
-
-cdef list solutions_found = list()
-cdef list paths_exhausted = list(),
-cdef int failures = 0
-cdef float run_time = 0.0,                                                      # in seconds.
-last_save = datetime.datetime(1980, 1, 1, 0, 0, 0)                              # Force a discretionary save to happen soon.
+border_locations = {1, 2, 3, 4, 5, 9, 14, 18, 23, 22, 21, 20, 19, 15, 10, 6}
 
 
-run_start = datetime.datetime.now()
-
-script_location = Path("/home/patrick/Documents/programming/python_projects/IF utils/specific_games/RopeOfChalk")
-progress_data_path = script_location / 'cealdhame_progress.pkl'
-cdef int save_interval = 15 * 60                                                # Minimum number of seconds between "discretionary" saves.
+# Now, massage the data into an easier-to-deal-with form by creating a set of 2-tuples representing the various paths.
+all_paths = set()
 
 
-# Utility functions.
-cdef float total_time():
+def expand_paths():
+    global all_paths
+    for k, v in pathways.items():
+        for dest in v:
+            all_paths.add(tuple(sorted((k, dest))))
+
+
+expand_paths()
+
+
+# Now, some mappings between the paths and the labels that will be used to represent them.
+# We match each path to an ASCII letter; there are more of those than there are possible pathways in this problem.
+path_to_label = dict(zip(sorted(all_paths), sorted(string.ascii_letters)))
+label_to_path = {v: k for k, v in path_to_label.items()}
+
+
+# Some utility functions.
+def total_run_time() -> float:
     """Get the total time since the run started.
     """
-    return (datetime.datetime.now() - run_start).total_seconds()
+    return time.monotonic() - run_start
 
 
-def prune_exhausted_paths(list_of_paths: typing.List[typing.Tuple[int, int]]) -> typing.List[typing.Tuple[int, int]]:
-    """Prune redundant paths from LIST_OF_PATHS. A path is REDUNDANT if it
-    represents a path-beginning that will never be reached because a shorter path-
-    beginning that is also on the list will nip that longer path before it's
-    reached. For instance, if [a, b, c, d] is on the list, then it makes the paths
-    [a, b, c, d, g], [a, b, c, d, v], and any other paths beginning
-    [a, b, c, d, ...] redundant.
+def time_since_last_save() -> float:
+    """Return the number of seconds since a save last happened."""
+    return time.monotonic() - last_save
+
+
+def do_save() -> None:
+    """Save the data necessary to preserve the global state so that we can start from
+    this place on the next run.
     """
-    cdef:
-        list ret = list()
-        tuple p
-        int prune_len
-        bint prune
+    global last_save
 
-    for p in list_of_paths:
-        prune = False
-        for prune_len in range(1, len(p) - checkpoint_interval):
-            if p[:-prune_len] in list_of_paths:
-                prune = True
-                break
-        if not prune:
-            ret.append(p)
+    data = {
+        'exhausted': exhausted_paths,
+        'successful': successful_paths,
+        'failures': failures,
+        'runtime': total_run_time(),
+    }
 
-    if len(ret) < len(list_of_paths):
-        print(f" ... pruned {len(list_of_paths) - len(ret)} redundant entries!")
-
-    return ret
+    with bz2.open(progress_data_path, mode='wb') as progress_file:
+        pickle.dump(data, progress_file, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f"  ... saved progress data to {progress_data_path.resolve()}, after accumulating {time_since_last_save() / 60.0} minutes' worth of new data!")
+    last_save = time.monotonic()
 
 
-cdef void save_progress(bool discretionary = False) except *:
-    """Save the progress data so that we can restore it on subsequent runs. If
-    DISCRETIONARY is True, the routine skips the save if we've performed a save
-    recently, i.e. within the last SAVE_INTERVAL seconds.
+def do_restore_data() -> None:
+    """Restore the state data to the global variables tracking it.
     """
-    global solutions_found, paths_exhausted, failures, last_save
-    start_time = time.monotonic()
+    global exhausted_paths, successful_paths, failures, run_start
+
+    try:
+        with bz2.open(progress_data_path, mode='rb') as progress_file:
+            data = pickle.load(progress_file)
+    except IOError as errrr:
+        print(f"\nWARNING! Progress data not found, or unreadable! The system said: {errrr}")
+        print("Restarting from scratch ...\n\n")
+        return
+
+    exhausted_paths = data['exhausted']
+    successful_paths = data['successful']
+    failures = data['failures']
+    run_start = time.monotonic() - data['runtime']
+
+
+def prune_and_save(steps_taken: str,                            # inline me!
+                   discretionary: bool = True) -> None:
+    """Checks to see whether the global list of EXHAUSTED_PATHS needs to be pruned,
+    based on the list of STEPS_TAKEN. If the length of STEPS_TAKEN is (a) less than
+    the global constant CHECKPOINT_INTERVAL, or (b) a multiple of it, then the
+    global list of exhausted paths needs to be pruned. Pruning takes time, but helps
+    to keep the "is this path exhausted?" check run by is_exhausted() running
+    quickly; these concerns are balanced against each other by adjusting the value
+    of CHECKPOINT_INTERVAL.
+
+    STEPS_TAKEN is the string showing steps taken so far.
+
+    If DISCRETIONARY is False, the "check" step is skipped, and pruning and saving
+    definitely happens; this is sometimes handy when saving.
+    """
+    global exhausted_paths
 
     if discretionary:
-        if (datetime.datetime.now() - last_save).total_seconds() < save_interval:
+        if not (len(steps_taken) <= checkpoint_interval):
+            if not ((len(steps_taken) % checkpoint_interval) == 0):
+                return
+        if not time_since_last_save() >= save_interval:
             return
 
-    paths_exhausted = prune_exhausted_paths(paths_exhausted)
-    progress_data = {
-        'solutions_found': solutions_found,
-        'paths_exhausted': paths_exhausted,
-        'failures': failures,
-        'run_time': total_time(),
-        }
-    with bz2.open(progress_data_path, mode='wb') as progress_data_file:
-        pickle.dump(progress_data, progress_data_file, protocol=-1)
-
-    print(f"Saved progress in {time.monotonic() - start_time} seconds!")
-    last_save = datetime.datetime.now()
-
-
-cdef void restore_progress() except *:
-    """Restore progress data from the progress file, if there is one.
-    """
-    global solutions_found, paths_exhausted, failures, run_start, last_save
-
-    if not progress_data_path.exists():  # Nothing to restore!
-        return
-    if not progress_data_path.is_file():
-        print(f"WARNING: filesystem object at {progress_data_path} is not a regular file! Weirdness with progress data may result.")
-
-    with open(progress_data_path, mode='rb') as progress_data_file:
-        progress_data = pickle.load(progress_data_file)
-    
-    solutions_found, paths_exhausted, failures = progress_data['solutions_found'], progress_data['paths_exhausted'], progress_data['failures']
-
-    last_save = datetime.datetime(1980, 1, 1, 0, 0, 0)                  # Force the next discretionary save to occur.
-    run_start = datetime.datetime.now() - datetime.timedelta(seconds=-progress_data['run_time'])
-    print("Successfully restored previously made progress!")
-
-
-def _flatten_list(l: typing.abc.Iterable) -> typing.Generator[int, None, None]:
-    """Takes an iterable, L, which may contain other iterables, and returns a generator
-    that produces the individual elements that comprise the original iterable L.
-    No matter how many levels deep the iterability of L goes, the resulting
-    generator will return the elements of those iterables, rather than the
-    iterables themselves. So _flatten_list([1, 2, [3, 4, [5, 6, 7], [8, 9]]]) yields
-    1, 2, 3, 4, 5, 6, 7, 8, 9, one item at a time.
-
-    The explanation above is an oversimplification: this code means "list and tuple"
-    by "iterable" in the explanation above, not other types of iterables. Notably,
-    it does not return the individual characters comprising a string, but simply the
-    whole string at once, as if strings were not iterable at all.
-    """
-    for elem in l:
-        if isinstance(elem, collections.abc.Iterable) and not isinstance(elem, (str, bytes)):
-            yield from elem
+    pruned = set()
+    for exh_p in sorted(sorted(exhausted_paths), key=len):
+        for known_key in pruned:
+            if exh_p.startswith(known_key):
+                break
         else:
-            yield elem
+            pruned.add(exh_p)
+    exhausted_paths = pruned
+    do_save()
 
 
-# Startup checks and pre-computation.
-cdef void validate_data() except *:
-    """Perform basic sanity checks to detect data entry errors in the data above.
+def is_exhausted(path: str) -> bool:                # inline me!
+    """Check if PATH is excluded from exploration on the basis of being already fully
+    explored, or else a path that depends on having been already fully explored.
+
+    This can probably be optimized further by taking CHECKPOINT_INTERVAL into
+    account.
     """
-    for start in pathways:
-        assert start in set(_flatten_list(pathways.values()))       # Ensure at least one pathway leads to this data.
-        for end in pathways[start]:
-            try:
-                assert start in pathways[end]                       # Ensure path is reciprocal
-            except AssertionError:
-                print(f"Path {start} to {end} is one-way!")
+    if path in exhausted_paths:
+        return True
+    for i in range(len(path) - 1):
+        if path[:-(i+1)] in exhausted_paths:
+            return True
+    return False
 
 
-cdef void compute_paths() except *:
-    """Set up the global variable ALL_PATHS.
+def is_victory(path: str) -> bool:                  # inline me!
+    """Check to see if (a) we've hit every path, and (b) our last step finished on an
+    outside square. Also perform the basic sanity check of making sure we didn't
+    traverse any path twice. If all of this is true, returns True; otherwise False.
     """
-    global all_paths
-    for start in pathways:
-        for end in pathways[start]:
-            all_paths.add(tuple(sorted([start, end])))
+    if len(path) != len(all_paths):
+        return False
+    if path_to_label[path[-1]][1] not in border_locations:
+        return False
+    if len(set(path)) != len(path):
+        path_counts = collections.Counter(path)
+        raise RuntimeError(f"Somehow, path(s) {(p for p in path_counts if path_counts[p] > 1)} was traversed multiple times!")
+    return True
 
 
-cdef void set_up() except *:
-    """Perform setup tests.
+def handle_victory(path: str) -> None:
+    """Announce a victory, print it to the screen, and record it in the global
+    SUCCESSFUL_PATHS variable. Then force a save.
     """
-    validate_data()
-    compute_paths()
-    restore_progress()
+    global successful_paths
+
+    readable_path = [label_to_path[p] for p in path]
+    print(f"\n\nSolution found!\n\t{readable_path}\n\n")
+    successful_paths[path] = readable_path
+    do_save()
 
 
-cdef void bump_failures() except *:
+def bump_failures():                # inline me!
     """Increase the failure count. Print a notice if the number is right to do so.
     """
-    global failures, solutions_found
+    global failures, successful_paths
 
     failures += 1
     if (failures % 100000) == 0:
-        print(f"{failures / 1000000.0} million failures so far (and {len(solutions_found)} successes!) in {total_time() / 3600} hours")
+        print(f"{failures / 1000000.0} million failures so far (and {len(successful_paths)} successes!) in {total_run_time() / 60:.5f} minutes, or {total_run_time() / 3600:.5f} hours")
 
 
-# Actual solution to the problem.
-cdef void solve_from(int current_location,
-                     tuple steps_taken) except *:
+# The actual problem solution.
+def solve_from(current_location: int,
+               steps_taken: str) -> None:
     """Given CURRENT_LOCATION, our current location, and STEPS_TAKEN, a list of
     previous moves, iterate over all possible remaining moves, i.e. those that begin
     in our current location and have not yet been taken, iterate over all possible
     moves. Calls itself repeatedly to explore every possible path, terminating a
     path's investigation when it dead-ends, and printing solutions to STDOUT.
     """
-    cdef:
-        int previous_checkpoint_length
-        tuple remaining_paths, possible_moves
-        tuple m
+    global exhausted_paths
 
-    global paths_exhausted, solutions_found
-
-    previous_checkpoint_length = checkpoint_interval * (len(steps_taken) // checkpoint_interval)
-    if steps_taken[:previous_checkpoint_length] in paths_exhausted:    # This path has already been explored. Don't go down it again.
+    if is_victory(steps_taken):
+        handle_victory(steps_taken)
+        prune_and_save(steps_taken, discretionary=False)
         return
 
-    remaining_paths = tuple(p for p in all_paths if p not in steps_taken)
-    if (not remaining_paths):                                           # If we've hit every pathway ...
-        if (current_location in border_locations):                      # Are we in a border location?
-            solutions_found.append(steps_taken)
-            print(f"Solution # {solutions_found: 5}: {steps_taken}")
-            save_progress()
-        else:
-            bump_failures()
-            if ((len(steps_taken) % checkpoint_interval) == 0) or (len(steps_taken) < checkpoint_interval):
-                paths_exhausted.append(steps_taken)
-                save_progress(True)                                                     
-        return
+    if is_exhausted(steps_taken):           # Abort early if we know this pathway has been fully explored.
+        return                              # (This is helpful when continuing from previously saved data.)
 
-    possible_moves = tuple(p for p in remaining_paths if current_location in p)
-    if (not possible_moves):                                            # Of the untrod paths, are any adjacent to us?
+    possible_moves = sorted(pathways[current_location])
+    possible_paths = [path_to_label[tuple(sorted((current_location, n)))] for n in possible_moves]
+    possible_paths = [p for p in possible_paths if p not in steps_taken]
+    next_moves = [[n for n in label_to_path[p] if n != current_location][0] for p in possible_paths]
+    if not next_moves:
         bump_failures()
-        if ((len(steps_taken) % checkpoint_interval) == 0) or (len(steps_taken) < checkpoint_interval):
-            paths_exhausted.append(steps_taken)
-            save_progress(True)
-        return
-    for m in sorted(possible_moves):                                    # If so, tread them, sequentially and recursively.
-        new_location = [move for move in m if move != current_location][0]
-        solve_from(new_location, steps_taken + (m,))
 
+    for m in next_moves:
+        path = tuple(sorted((current_location, m)))
+        label = path_to_label[path]
+        if label in steps_taken:                # Already been down that path? Move along.
+            continue
+        hypothetical_path = steps_taken + label
+        if is_exhausted(hypothetical_path):
+            continue
 
-cdef void wrap_up():
-    print(f"Run finished!\n{len(solutions_found)} solutions found!\n{failures} dead-end paths!")
+        solve_from(m, hypothetical_path)
 
+    exhausted_paths.add(steps_taken)
+    prune_and_save(steps_taken)
 
 def solve() -> None:
-    set_up()
-    solve_from(12, tuple())
-    wrap_up()
+    print("\n\n\nStarting up ...")
+    do_restore_data()
+    solve_from(12, '')
