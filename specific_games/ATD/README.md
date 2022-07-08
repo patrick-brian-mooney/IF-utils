@@ -2,4 +2,5 @@ A Python script to try to exhaustively explore the possiblity space in <span cla
 
 Further details coming at some point in the future. For now, reading code comments is probably the best way to get information.
 
+<p>&nbsp;</p>
 <footer>This file last updated 17 Sept 2019.</footer>

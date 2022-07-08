@@ -14,4 +14,5 @@ Some scrips to brute-force some of the mazes in (beta version 1.62 of) <span cla
 A Cythonized script to explore the very tangential question "Can you pass through each roadway in the sub-map of Cealdhame exactly once" in Ryan Veeder's [A Rope of Chalk](https://ifdb.tads.org/viewgame?id=l4ziasab1x8t799c), from IFComp 2020.
 
 
+<p>&nbsp;</p>
 <footer>This file last updated 15 Oct 2020.</footer>

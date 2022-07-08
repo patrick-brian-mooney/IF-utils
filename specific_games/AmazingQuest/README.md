@@ -6,4 +6,5 @@ A translation, as direct as possible from C64 BASIC to Python 3, of the program.
 ## `reimplemention.py`
 A much-streamlined version of the program, simplified largely by avoiding reimplementing the BASIC-based READ/DATA logic.
 
+<p>&nbsp;</p>
 <footer>This file last updated 15 Oct 2020.</footer>

@@ -3,4 +3,5 @@ Some Python scripts to brute-force some of the mazes in Greg Boettcher's <a rel=
 May or may not work in final released version. It hasn't been tried yet!
 
 
+<p>&nbsp;</p>
 <footer>This file last updated 17 Sept 2019.</footer>
