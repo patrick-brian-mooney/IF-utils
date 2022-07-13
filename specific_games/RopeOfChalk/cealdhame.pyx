@@ -26,8 +26,8 @@ those spaces NE, NW, SE, SW.
 Again, the game makes no effort to get the player to notice this question, but
 I'm curious anyway.
 
-This quick Python 3.X hack is copyright 2020-22 by Patrick Mooney. It is part
-of Patrick Mooney's IF Utils, all of which are released under the GPL, either
+This Python 3.X hack is copyright 2020-22 by Patrick Mooney. It is part of
+Patrick Mooney's IF Utils, all of which are released under the GPL, either
 version 3 or, at your option, any later version. See the file LICENSE.md for
 details.
 """
@@ -45,7 +45,7 @@ import time
 
 cdef set exhausted_paths = set()                                # of strings
 cdef dict successful_paths = dict()                             # mapping movement-strings to list of movement-tuples
-cdef int failures = 0
+cdef unsigned long failures = 0
 
 cdef float last_save = time.monotonic()
 cdef float run_start = time.monotonic()
