@@ -51,13 +51,13 @@ cdef float last_save = time.monotonic()
 cdef float run_start = time.monotonic()
 
 progress_data_path = Path(__file__).parent / 'cealdhame_progress.dat'
-cdef long save_interval = 15 * 60                      # in seconds
-cdef long checkpoint_interval = 8      # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8"
-cdef long last_prune_length = 0        # how long was the lst of exhaused paths when we last pruned it?
-cdef long prune_interval = 10000       # how much can the list grow by before we prune it again?
+cdef long save_interval = 15 * 60                               # in seconds
+cdef long checkpoint_interval = 8       # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8"
+cdef long last_prune_length = 0         # how long was the lst of exhaused paths when we last pruned it?
+cdef long prune_interval = 1000         # how much can the list grow by before we prune it again?
 
 # Performance data-gathering variables; remove them eventually
-cdef float total_pruning_time = 0                       # in seconds
+cdef float total_pruning_time = 0                               # in seconds
 
 
 # Basic data: which spaces, by number, can you move to from each space?
