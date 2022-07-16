@@ -45,14 +45,19 @@ import time
 
 cdef set exhausted_paths = set()                                # of strings
 cdef dict successful_paths = dict()                             # mapping movement-strings to list of movement-tuples
-cdef unsigned long failures = 0
+cdef long failures = 0
 
 cdef float last_save = time.monotonic()
 cdef float run_start = time.monotonic()
 
 progress_data_path = Path(__file__).parent / 'cealdhame_progress.dat'
-cdef int save_interval = 15 * 60                                # in seconds
-cdef int checkpoint_interval = 8    # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8"
+cdef long save_interval = 15 * 60                      # in seconds
+cdef long checkpoint_interval = 8      # How often do we checkpoint save data? E.g., 8 means "if the length of the path is a multiple of 8, or is less than 8"
+cdef long last_prune_length = 0        # how long was the lst of exhaused paths when we last pruned it?
+cdef long prune_interval = 10000       # how much can the list grow by before we prune it again?
+
+# Performance data-gathering variables; remove them eventually
+cdef float total_pruning_time = 0                       # in seconds
 
 
 # Basic data: which spaces, by number, can you move to from each space?
@@ -126,6 +131,9 @@ cdef inline float time_since_last_save():
 cdef void do_save() except *:
     """Save the data necessary to preserve the global state so that we can start from
     this place on the next run.
+
+    This function does not prune the eEXHUASTED_PATHS data before saving. Call
+    prune_and_save() instead if you want to do taht.
     """
     cdef dict data
     global last_save
@@ -153,7 +161,7 @@ def do_restore_data():
         with bz2.open(progress_data_path, mode='rb') as progress_file:
             data = pickle.load(progress_file)
     except IOError as errrr:
-        print(f"\nWARNING! Progress data not found, or unreadable! The system said: {errrr}")
+        print(f"\nWARNING! Progress data not found, or unreadable!\nThe system said: {errrr}")
         print("Restarting from scratch ...\n\n")
         return
 
@@ -163,32 +171,18 @@ def do_restore_data():
     run_start = time.monotonic() - data['runtime']
 
 
-cdef inline void prune_and_save(str steps_taken,
-                                bint discretionary = True) except *:
-    """Checks to see whether the global list of EXHAUSTED_PATHS needs to be pruned,
-    based on the list of STEPS_TAKEN. If the length of STEPS_TAKEN is (a) less than
-    the global constant CHECKPOINT_INTERVAL, or (b) a multiple of it, then the
-    global list of exhausted paths needs to be pruned. Pruning takes time, but helps
-    to keep the "is this path exhausted?" check run by is_exhausted() running
-    quickly; these concerns are balanced against each other by adjusting the value
-    of CHECKPOINT_INTERVAL.
-
-    STEPS_TAKEN is the string showing steps taken so far.
-
-    If DISCRETIONARY is False, the "check" step is skipped, and pruning and saving
-    definitely happens; this is sometimes handy when saving.
+cdef inline void do_prune() except *:
+    """Pruning takes time, but helps to keep the "is this path exhausted?" check
+    run by is_exhausted() running quickly; these concerns are balanced against each
+    other by adjusting the value of CHECKPOINT_INTERVAL.
     """
     cdef:
         set pruned
         str exh_p, known_key
-    global exhausted_paths
+        float start, prune_time
+    global exhausted_paths, last_prune_length, total_pruning_time
 
-    if discretionary:
-        if not (len(steps_taken) <= checkpoint_interval):
-            if not ((len(steps_taken) % checkpoint_interval) == 0):
-                return
-        if not time_since_last_save() >= save_interval:
-            return
+    start = time.monotonic()
 
     pruned = set()
     for exh_p in sorted(sorted(exhausted_paths), key=len):
@@ -197,8 +191,35 @@ cdef inline void prune_and_save(str steps_taken,
                 break
         else:
             pruned.add(exh_p)
+
+    last_prune_length = len(pruned)
+    prune_time = time.monotonic() - start
+    total_pruning_time += prune_time
     exhausted_paths = pruned
+
+
+cdef inline void prune_and_save(str steps_taken,
+                                bint discretionary = True) except *:
+    """Checks to see whether it's time to save, based on the list of STEPS_TAKEN.
+    If the length of STEPS_TAKEN is (a) less than the global constant
+    CHECKPOINT_INTERVAL, or (b) a multiple of it, then we should save. If we're
+    about to save, we prune first.
+
+    STEPS_TAKEN is the string showing steps taken so far.
+
+    If DISCRETIONARY is False, the "check" step is skipped, and pruning and saving
+    definitely happens.
+    """
+    if discretionary:
+        if not (len(steps_taken) <= checkpoint_interval):
+            if not ((len(steps_taken) % checkpoint_interval) == 0):
+                return
+        if not time_since_last_save() >= save_interval:
+            return
+
+    do_prune()
     do_save()
+    print(f"    ... {total_pruning_time / 60:.5} minutes spent pruning so far on this run!")
 
 
 cdef inline bint is_exhausted(str path) except *:
@@ -296,6 +317,9 @@ cdef void solve_from(int current_location,
             continue
 
         solve_from(m, hypothetical_path)
+
+        if len(exhausted_paths) >= (last_prune_length + prune_interval):
+            do_prune()
 
     exhausted_paths.add(steps_taken)
     prune_and_save(steps_taken)
