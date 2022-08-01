@@ -17,7 +17,6 @@ The ap2zc program is part of a group of interactive fiction-related utilities
 by Patrick Mooney. It is copyright 2018. It is released under the GNU GPL,
 either version 3 or (at your option) any later version. See the file
 LICENSE.md for details.
-
 """
 
 import os, sys
