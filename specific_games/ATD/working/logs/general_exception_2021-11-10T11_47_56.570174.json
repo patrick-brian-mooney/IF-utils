@@ -1,0 +1,15 @@
+{
+  "command": "examine benches",
+  "error": "I/O operation on closed file.",
+  "traceback": [
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 2173 in <module>>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 2164 in main>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 1476 in run>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 1483 in _exec>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/_pydev_imps/_pydev_execfile.py, line 18 in execfile>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/explore_possibilities.py, line 1441 in <module>>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/explore_possibilities.py, line 1309 in play_game>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/explore_possibilities.py, line 1292 in make_moves>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/explore_possibilities.py, line 682 in document_problem>"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "command": "go north",
+  "error": "I/O operation on closed file.",
+  "traceback": [
+    "<FrameSummary file ./explore_possibilities.py, line 1440 in <module>>",
+    "<FrameSummary file ./explore_possibilities.py, line 1308 in play_game>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1289 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 1291 in make_moves>",
+    "<FrameSummary file ./explore_possibilities.py, line 683 in document_problem>"
+  ]
+}

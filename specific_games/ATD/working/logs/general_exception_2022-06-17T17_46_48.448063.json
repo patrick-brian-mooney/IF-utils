@@ -1,0 +1,7 @@
+{
+  "command": "go north",
+  "error": "I/O operation on closed file.",
+  "traceback": [
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/./explore_ATD.py, line 13 in <module>>"
+  ]
+}

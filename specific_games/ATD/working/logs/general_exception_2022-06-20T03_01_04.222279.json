@@ -1,0 +1,12 @@
+{
+  "command": "close deutsch lab",
+  "error": "[Errno 32] Broken pipe",
+  "traceback": [
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 2173 in <module>>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 2164 in main>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 1476 in run>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/pydevd.py, line 1483 in _exec>",
+    "<FrameSummary file /home/patrick/bin/pycharm-community-2021.1.3/plugins/python-ce/helpers/pydev/_pydev_imps/_pydev_execfile.py, line 18 in execfile>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/explore_ATD.py, line 13 in <module>>"
+  ]
+}
