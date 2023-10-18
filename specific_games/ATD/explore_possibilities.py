@@ -26,12 +26,9 @@ This script is copyright 2019-22 by Patrick Mooney. It is released under the
 GPL, either version 3 or (at your option) any later version. See the file
 LICENSE for a copy of this license.
 """
-module_docstring = __doc__
 
 
 import argparse
-import bz2
-import collections
 import datetime
 import json
 import os
@@ -40,35 +37,18 @@ from pathlib import Path
 
 import pickle
 import pprint
-import queue
-import random
-import shlex, signal, string, subprocess, sys
-import tarfile, threading, time, traceback, typing
+import shlex, signal, string, sys
+import tarfile, threading, time, typing
 import uuid
 
-# Definitions of debugging verbosity levels:
-# 0         Only print "regular things": solutions found, periodic processing updates, fatal errors
-# 1         Also display warnings.
-# 2         Also display chatty messages about large-scale progress.
-# 3         Also display each node explored: (location, action taken) -> result
-# 4         Also chatter extensively about individual steps taken while exploring each node
-verbosity = 2       # How chatty are we being about our progress?
-maximum_verbosity_level = 4
-transcript = True   # If True, issue a SCRIPT command at the beginning of the game to keep a transcript.
+import terp_connection as tc
+
+
+module_docstring = __doc__
 
 # Next, we'll have some program-configuration parameters, starting with file and directory structure.
 # First: Program-running parameters. Not useful when not on my system. Override with -i  and -s, respectively.
-interpreter_location = Path('/home/patrick/bin/dfrotz/dfrotz').resolve()
-interpreter_flags = ["-m"]
 story_file_location = Path('/home/patrick/games/IF/by author/Ord, Toby/as half sick of shadows/[2004] All Things Devours/devours.z5').resolve()
-
-base_directory = Path(os.path.dirname(__file__)).resolve()
-working_directory = base_directory / 'working'
-progress_checkpoint_file = working_directory / 'progress.json'
-
-save_file_directory = working_directory / 'saves'
-successful_paths_directory = working_directory / 'successful_paths'
-logs_directory = working_directory / 'logs'
 
 
 # Global statistics; these are overwritten when restoring state from previous runs.
@@ -86,9 +66,6 @@ last_checkpoint_time = datetime.datetime(year=1970, month=1, day=1, hour=0, minu
 minimum_checkpointing_interval = 10 * 60        # seconds
 
 # Some data used when parsing the game's output and/or making decisions about what commands are allowed.
-failure_messages = [l.strip().lower() for l in ['*** You have failed ***',]]
-success_messages = [l.strip().lower() for l in ['*** Success. Final, lasting success. ***',]]
-
 direction_inverses = {
     'down': 'up',
     'east': 'west',
@@ -103,64 +80,6 @@ direction_inverses = {
     'up': 'down',
 }
 
-# Some game data is stored in external files for various reasons.
-mistake_messages = [ """"oops" can only correct""", "after a few moments, you realise that", "already closed.",
-                     "beg your pardon?", "but it barely leaves a mark.", "but the glass stays in place.",
-                     "but there's no water here", "but you aren't", "but you aren't in anything",
-                     "darkness, noun.  an absence of light", "digging would achieve nothing here", "does not open.",
-                     "error: overflow in", "error: unknown door status", "error: unknown reason for",
-                     "for a while, but don't achieve much.", "for example, with 'set timer to 30'.",
-                     "i didn't understand that", "i didn't understand the way", "i don't think much is to be achieved",
-                     "i only understood you as far as", "if you could do that",
-                     "impossible to place objects on top of it.", "is already here.", "is locked in place.",
-                     "is that the best you can", "it is not clear what", "it is pitch dark, and you can't",
-                     "no pronouns are known to the game", "nothing happens -- the button must be",
-                     "nothing practical results", "real adventurers do not", "seem to be something you can lock.",
-                     "seem to be something you can unlock.", "sorry, you can only have one",
-                     "switching on the overhead lights would", "that doesn't seem to be something",
-                     "that would be less than courteous", "that would scarcely", "that's not a verb i recognise",
-                     "that's not something you can", "that's not something you need to refer to",
-                     "the challenge can only be initiated in the first turn", "the challenge has already been initiated",
-                     "the dreadful truth is, this is not a dream.", "the only exit is", "the only exits are",
-                     "the prototype's control panel only accepts", "the slot emits a small beep and your card is rejected",
-                     "the switch clicks, but no light", "the window appears to be locked", "the window is already",
-                     "there is no obvious way to", "there is no way that you could tear them up in time.",
-                     "there is nothing here that you could", "there is nothing to", "there's not enough water",
-                     "there's nothing sensible", "there's nothing suitable to drink", "you would achieve nothing",
-                     "this dangerous act would achieve little", "this one closes of its own accord.",
-                     "to set the explosive device, you need to", "to talk to someone, try", "try as you might, none of",
-                     "until you complete the modifications.", "violence isn't the answer",  "you would have to",
-                     "you are not strong enough to break", "you aren't feeling especially", "you can hear nothing but",
-                     "you can only do that to", "you can only get into something", "you can only use multiple objects",
-                     "you can see clearly enough in the gloom.", "you can't put something inside",
-                     "you can't put something on", "you can't see any such thing", "you can't see anything of interest",
-                     "you can't use multiple objects", "you can't, since", "you cannot attach the cable to",
-                     "you cannot get the window open", "you cannot make out any", "you cannot open the door with",
-                     "you cannot see what", "you can\u2019t since", "you cannot do that", "you're carrying too many",
-                     "you discover nothing of interest", "you do not have the key", "you won't be able to",
-                     "you don't have anything heavy enough", "you don't need to worry about", "you'll have to say which",
-                     "you excepted something not included", "you have not yet set", "you jump on the spot, fruitlessly",
-                     "you lack the nerve", "you see nothing", "you seem to have said too little", "your timer only accepts",
-                     "you seem to want to talk to someone, but", "you will have to be more specific about",
-                     "you would need to be near the prototype", "you would need you id card to",
-]
-
-disambiguation_messages = ["which do you mean", "please give one of the answers above"]
-
-rooms = {
-  "balcony": {"hideable": True},
-  "basement corridor": {"hideable": False},
-  "basement equipment room": {"hideable": True},
-  "basement landing": {"hideable": False},
-  "conference room": {"hideable": True},
-  "first floor corridor": {"hideable": True},
-  "first floor equipment room": {"hideable": True},
-  "foyer": {"hideable": False},
-  "inside the prototype": {"hideable": False},
-  "second floor corridor": {"hideable": True},
-  "the deutsch laboratory": {"hideable": False},
-  "upstairs landing": {"hideable": True},
-}
 
 # These next are routines that determine whether a command is available as a guess that the code can take at a
 # particular point in time. Each function is passed one parameter, which is the current command being attempted (the
@@ -173,7 +92,7 @@ rooms = {
 # when it's possible to be ABSOLUTELY SURE, in advance, that they're not a viable way to move forward.
 
 # Functions that have no need to look at the current command to know if their action is available can just consume
-# it with *pargs syntax.
+# it with *pargs syntax, if desired
 def always_true(*pargs) -> bool:
     """Utility function for commands that are always available. When we query whether
     the command is available, this function just returns True.
@@ -332,7 +251,7 @@ def no_pacing_unless_hiding(c: str) -> bool:
     previous_direction = previous_command[2:].strip()   # The direction we went on the last turn.
     assert current_direction in direction_inverses, "ERROR: we're trying to GO in an undefined direction!"
     if direction_inverses[current_direction] == previous_direction:
-        return rooms[terp_proc.current_room]['hideable']
+        return terp_proc.rooms[terp_proc.current_room]['hideable']
     return True
 
 
@@ -432,7 +351,7 @@ def only_in(c: str, where: typing.List[str]) -> bool:
     WHERE.
     """
     for w in where:
-        assert w.lower().strip() in rooms
+        assert w.lower().strip() in terp_proc.rooms
     return terp_proc.current_room.lower().strip() in [w.lower().strip() for w in where]
 
 
@@ -616,27 +535,6 @@ all_commands = {
 
 
 # Now that we've specified the data and some basic handling methods ... here are some utility routines.
-print_mutex = threading.Lock()
-def safe_print(*args, **kwargs) -> None:
-    """Print safely, i.e. in a way that ensures multiple threads aren't trying to print
-    at the same time and stepping on each other's output.
-    """
-    with print_mutex:
-        print(*args, **kwargs)
-
-
-def safe_pprint(*args, **kwargs) -> None:
-    """Same as safe_print, but safely pprints instead of printing."""
-    with print_mutex:
-        pprint.pprint(*args, **kwargs)
-
-
-def debug_print(what: str, min_level: int=1) -> None:
-    """Print WHAT, if the global VERBOSITY is at least MIN_LEVEL."""
-    if verbosity >= min_level:
-        safe_print(" " * min_level + what)       # Indent according to unimportance level.
-
-
 def get_total_time() -> float:
     """Returns the total number of seconds since the processing run started. Note that
     runs that start by restoring progress data from a previous run also fake the
@@ -672,112 +570,10 @@ def clean_progress_data() -> None:
     begin = time.monotonic()
     pruned_dict = {k: v for k, v in progress_data.items() if (k.count('.') <= 4) or (not is_redundant_strand(k))}
     if pruned_dict != progress_data:
-        debug_print(f"  (pruned redundant data from the data store in {time.monotonic() - begin} seconds)", 3)
+        tc.debug_print(f"  (pruned redundant data from the data store in {time.monotonic() - begin} seconds)", 3)
         progress_data = pruned_dict
     else:
-        debug_print(f"  (found now redundant data in the data store in {time.monotonic() - begin} seconds)", 3)
-
-
-def document_problem(problem_type: str,
-                     data: dict,            # FIXME: containing what?
-                     also_print: bool = True) -> None:
-    """Document the fact that a problem situation arose. During early exploratory runs,
-    the intent is to gather as much data as possible about what future runs will be
-    like rather than to actually solve the problem at hand (i.e., to fully explore the
-    problem space). For this reason, detected problem conditions produce a report on
-    the problem and keep running to keep gathering more information about the shape
-    of the problem space.
-
-    During later runs, the reports continue to be produced, because production of a
-    report allows for judgments about whether the integrity of the run was
-    compromised by the documented problems.
-
-    PROBLEM_TYPE is a string indicating what type of problem arose; it should be
-    chosen from a small list of short standard strings. DATA is the data to be
-    stored about the problem.
-
-    A filename for the log file is automatically determined and the file is written
-    to the logs/ directory.
-
-    If ALSO_PRINT is True (the default), also dumps the complaint to the terminal.
-    """
-    found = False
-    data['traceback'] = traceback.extract_stack()
-    while not found:
-        p = logs_directory / (problem_type + '_' + datetime.datetime.now().isoformat().replace(':', '_') + '.json')
-        found = not p.exists()
-    p.write_text(json.dumps(data, indent=2, default=str, sort_keys=True))
-    if also_print:
-        safe_print("PROBLEM TYPE: " + problem_type + '\n\nData:\n')
-        safe_pprint(data)
-
-
-# Here's a utility class used to wrap an output stream for the TerpConnection, below.
-class NonBlockingStreamReader(object):
-    """Wrapper for subprocess.Popen's stdout and stderr streams, so that we can read
-    from them without having to worry about blocking.
-
-    Draws heavily from Eyal Arubas's solution to the problem at
-    http://eyalarubas.com/python-subproc-nonblock.html.
-    """
-    def __init__(self, stream) -> None:
-        """stream: the stream to read from.
-                Usually a process' stdout or stderr.
-        """
-        self._s = stream
-        self._q = queue.Queue()
-        self._quit = False              # Set to True to make the thread quit gracefully. Only do this when killing the process whose stream it's wrapping.
-
-        def _populateQueue(stream, queue) -> None:
-            """Collect lines from STREAM and put them in QUEUE."""
-            while True:
-                if self._quit:
-                    self._q = None          # signal that we no longer have the queue open
-                    return                  # returning from the function ends the thread.
-                line = stream.readline()
-                if line:
-                    queue.put(line)
-                else:
-                    return                  # If the stream is closed, we're done. End the thread gracefully.
-
-        self._t = threading.Thread(target=_populateQueue, args=(self._s, self._q))
-        self._t.daemon = True
-        self._t.start()             # start collecting lines from the stream
-
-    def readline(self, timeout=None) -> typing.Union[str, None]:
-        """Returns the next line in the buffer, if there are any; otherwise, returns None.
-        Waits up to TIMEOUT seconds for more data before returning None. If TIMEOUT is
-        None, blocks until there IS more data in the buffer. Does not do any decoding.
-        """
-        try:
-            return self._q.get(block=timeout is not None, timeout=timeout)
-        except queue.Empty:
-            return None
-
-    def readlines(self, *pargs, **kwargs) -> typing.List[str]:
-        """Returns a list of all lines waiting in the buffer. If no lines are waiting in
-        the buffer, returns an empty list. Takes *pargs and **kwargs to be compatible
-        with .readlines() on a file object, but complains at debug level 1 if they are
-        supplied, in case I'm ever tempted to pass them in, or I ever thoughtlessly pass
-        this object to anything that takes advantage of other features on more standard
-        interfaces.
-        """
-        if pargs:
-            debug_print(f"WARNING! positional arguments {pargs} supplied to NonBlockingStreamReader.readlines()! Ignoring...", 1)
-        if kwargs:
-            debug_print(f"WARNING! keyword arguments {kwargs} supplied to NonBlockingStreamReader.readlines()! Ignoring...", 1)
-        ret, next = list(), True
-        while next:
-            next = self.readline(0.1)
-            if next:
-                ret.append(next)
-        return ret
-
-    def read_text(self) -> str:
-        """Returns all the text waiting in the buffer.
-        """
-        ret = '\n'.join([l.rstrip() for l in self.readlines()]).strip().lstrip('>')
-        return ret
+        tc.debug_print(f"  (found now redundant data in the data store in {time.monotonic() - begin} seconds)", 3)
 
 
 class MetadataWriter(threading.Thread):
@@ -801,7 +597,7 @@ class MetadataWriter(threading.Thread):
     """
     _max_writing_queue_length = 3      # Maximum number of to-write objects tracked.
 
-    def __init__(self, parent: 'TerpConnection',
+    def __init__(self, parent: 'ATDTerpConnection',
                  data: typing.Optional[dict] = None):
         if data:
             assert isinstance(data, dict)
@@ -827,17 +623,17 @@ class MetadataWriter(threading.Thread):
         queue a string representing the current time, which helps when overlooking the
         process during debugging.
         """
-        debug_print(f"    (queueing checkpoint data for saving, waiting to acquire lock ...)", min_level=4)
+        tc.debug_print(f"    (queueing checkpoint data for saving, waiting to acquire lock ...)", min_level=4)
         with self.mutex:
-            debug_print(f"    (lock aquired ...)", min_level=5)
+            tc.debug_print(f"    (lock aquired ...)", min_level=5)
             self.to_write.append((pickle.dumps(data, protocol=-1), datetime.datetime.now().isoformat(' ')))
             if len(self.to_write) > self._max_writing_queue_length:  # Grown too long? Just keep most recent entries.
                 sorted_queue = sorted(self.to_write, key=lambda i: i[1])
-                debug_print(f"      (pruning save queue ... there are {len(sorted_queue)} entries queued from {sorted_queue[0][2]} to {sorted_queue[-1][2]})", min_level=3)
+                tc.debug_print(f"      (pruning save queue ... there are {len(sorted_queue)} entries queued from {sorted_queue[0][2]} to {sorted_queue[-1][2]})", min_level=3)
                 self.to_write = self.to_write[-self._max_writing_queue_length:]
                 sorted_queue = sorted(self.to_write, key=lambda i: i[1])
-                debug_print(f"        (... sorted! Queue now contains {len(sorted_queue)} entries, queued from {sorted_queue[0][2]} to {sorted_queue[-1][2]})", min_level=3)
-            debug_print(f"    (checkpoint data queued)", min_level=4)
+                tc.debug_print(f"        (... sorted! Queue now contains {len(sorted_queue)} entries, queued from {sorted_queue[0][2]} to {sorted_queue[-1][2]})", min_level=3)
+            tc.debug_print(f"    (checkpoint data queued)", min_level=4)
 
     def _write(self) -> None:
         """Writes the data that is waiting to be written to disk.
@@ -845,213 +641,71 @@ class MetadataWriter(threading.Thread):
         while self.to_write:
             fname = None
             while (fname is None) or (fname.exists()):
-                fname = progress_checkpoint_file.with_name(str(uuid.uuid4()))
+                fname = self.parent.progress_checkpoint_file.with_name(str(uuid.uuid4()))
             try:
                 try:
                     with self.mutex:
                         data = self.to_write.pop(0)
                 except (IndexError,):   # Shouldn't be popping from an empty list: we're the only thread removing data
                     continue            # from the to_write queue. Still, be careful anyway.
-                debug_print(f"    (writing individual checkpoint file with temporary name {fname})", min_level=4)
+                tc.debug_print(f"    (writing individual checkpoint file with temporary name {fname})", min_level=4)
                 with open(fname, 'wt') as metadata_file:
                     metadata_file.write(json.dumps(pickle.loads(data[0]), indent=2, default=str))
-                if progress_checkpoint_file.exists():
-                    new_name = Path(str(progress_checkpoint_file) + '.bak')
-                    progress_checkpoint_file.rename(new_name)
-                fname.rename(progress_checkpoint_file)
+                if self.parent.progress_checkpoint_file.exists():
+                    new_name = Path(str(self.parent.progress_checkpoint_file) + '.bak')
+                    self.parent.progress_checkpoint_file.rename(new_name)
+                fname.rename(self.parent.progress_checkpoint_file)
             except (Exception,) as errrr:
-                safe_print(f"Unable to write file during checkpointing save! The system said: {errrr}")
+                tc.safe_print(f"Unable to write file during checkpointing save! The system said: {errrr}")
             finally:
                 if fname.exists():  # If we got this far and the temp file still exists, delete it.
                     fname.unlink()
-        debug_print(f"    (all queued checkpoint files written!)", min_level=2)
+        tc.debug_print(f"    (all queued checkpoint files written!)", min_level=2)
         self.parent.checkpoint_writer = None
 
     def run(self) -> None:
         self._write()
 
 
-class TerpConnection(object):
-    """Maintains a connection to a running instance of a 'terp executing ATD. Also
-    maintains a connection to the nonblocking reader that wraps its stdout stream.
-    Provides functions for issuing a command to the 'terp and reading the text that
-    is returned. Also provides some convenience functions to control the 'terp in a
-    higher-level way.
+class ATDTerpConnection(tc.TerpConnection):
+    """Subclass that customizes TerpConnection for this particular game in order to
+    accomplish the goals of this particular script.
     """
+    # The superclass really only requires this to be a list, but in this class it
+    # does double duty by using that list as keys to index additional data.
+    rooms = {
+        "balcony": {"hideable": True},
+        "basement corridor": {"hideable": False},
+        "basement equipment room": {"hideable": True},
+        "basement landing": {"hideable": False},
+        "conference room": {"hideable": True},
+        "first floor corridor": {"hideable": True},
+        "first floor equipment room": {"hideable": True},
+        "foyer": {"hideable": False},
+        "inside the prototype": {"hideable": False},
+        "second floor corridor": {"hideable": True},
+        "the deutsch laboratory": {"hideable": False},
+        "upstairs landing": {"hideable": True},
+    }
+
+    # Filesystem config options
+    base_directory = Path(os.path.dirname(__file__)).resolve()
+    working_directory = base_directory / 'working'
+    progress_checkpoint_file = working_directory / 'progress.json'
+
+    save_file_directory = working_directory / 'saves'
+    successful_paths_directory = working_directory / 'successful_paths'
+    logs_directory = working_directory / 'logs'
+
+    inventory_answer_tag = "You are carrying:".casefold()
+
     def __init__(self):
         """Opens a connection to a 'terp process that plays ATD. Saves a reference to that
         process. Wraps its STDOUT stream in a nonblocking wrapper. Saves a reference to
-        that wrapper. Initializes the command-history data structure. DOes other setup.
+        that wrapper. Initializes the command-history data structure. Does other setup.
         """
+        tc.TerpConnection.__init__(self)
         self.checkpoint_writer = None
-        parameters = [str(interpreter_location)] + interpreter_flags + [str(story_file_location)]
-        self._proc = subprocess.Popen(parameters, shell=False, universal_newlines=True, bufsize=1,
-                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        self._reader = NonBlockingStreamReader(self._proc.stdout)
-        opening_context = self.evaluate_context(self._get_output(), command='[game start]')
-        self.context_history = collections.ChainMap(opening_context)
-        if transcript:
-            self.SCRIPT()
-
-    def __str__(self):
-        ret =  "< TerpConnection object; "
-        try:
-            ret += " room: " + self.current_room + ';'
-        except Exception:
-            ret += " room: [unknown]\n"
-        try:
-            ret += " inventory: " + str(self.peek_at_inventory) + ';'
-        except Exception:
-            ret += " inventory: [unknown];"
-        try:
-            ret += " last command: " + self.last_command
-        except Exception:
-            ret += " last command: [unknown]"
-        ret += " >"
-        return ret
-
-    def _clean_up(self):
-        """Politely close down the connection to the 'terp. Store None in its wrapped
-        objects to force a crash if we keep trying to work with it.
-        """
-        debug_print("Cleaning up the 'terp connection.", 2)
-        self.QUIT()
-        if self.checkpoint_writer:
-            self.checkpoint_writer.join()
-        self._proc.stdin.close()
-        self._proc.terminate()
-        self._reader._quit = True
-        self._proc, self._reader = None, None
-
-    def _get_output(self, retry: bool = True) -> str:
-        """Convenience function to return whatever output text is currently queued in the
-        nonblocking wrapper around the 'terp's STDOUT stream. If there is no text at
-        all, then, if RETRY is True, sleep and retry several times until there is, or
-        until we've been patient enough and give up. If there is no text at all and
-        RETRY is False, just return an empty string.
-        """
-        debug_print("(read STDOUT from buffer)", 5)
-        ret = self._reader.read_text()
-        if (not ret) and retry:                 # Sometimes we need to wait on the buffer a few times.
-            sleep_time = 0.1
-            for i in range(20):                 # Should we just be upping the timeout on the read? -- probably not
-                ret = self._reader.read_text()
-                if ret:
-                    break
-                else:
-                    time.sleep(sleep_time)
-                    sleep_time *= 1.48          # Wait longer and longer for data from the 'terp.
-            if not ret:
-                document_problem("no data", data={'ERROR': "unable to get any data at all from the 'terp, even after being patient!"})
-        return ret.lstrip().lstrip('>').lstrip()
-
-    def _add_context_to_history(self, context: typing.Dict) -> None:       # FIXME: dict containing what?
-        """Adds the context to the front of the context-history chain, taking care only
-        to add "sparsely": it drops information that duplicates the most current
-        information in the context chain.
-        """
-        new = {k: v for k, v in context.items() if (k not in self.context_history or self.context_history[k] != v)}
-        debug_print(f'(adding new frame {new} to context history', 4)
-        self.context_history = self.context_history.new_child(new)
-
-    def _drop_history_frame(self):
-        """Drop the most recent "command history" context frame from the command history.
-        While doing so, delete the save-state checkpoint associated with the frame, if
-        there is one.
-        """
-        try:
-            self.context_history.maps[0]['checkpoint'].unlink()        # Erase the checkpoint file.
-        except KeyError:            # There is no save-file made to checkpoint that interpreter frame?
-            pass                    # No need to delete a save file, then.
-        self.context_history = self.context_history.parents       # Drop one frame from the context chain.
-
-    def repeat_last_output(self) -> str:
-        """A utility function to repeat the last output that the 'terp produced. Does NOT
-        look at or touch any data currently in the buffer waiting to be read; it just
-        consults the 'terp's context history to extract the last output that was
-        recorded there.
-        """
-        debug_print('(re-reading last output)', 4)
-        return self.context_history['output']
-
-    @property
-    def reconstruct_transcript(self) -> str:
-        """Reconstruct a walkthrough to the current state from the context frames stored in
-        the TerpConnection. Note that this may not be identical to the transcript
-        actually kept by the program; that text is processed before the original text is
-        thrown away. This is a reconstruction, though it should be a fairly close one.
-        """
-        return '\n\n'.join(reversed(['> ' + frame['command'] + '\n\n' + frame['output'] for frame in self.context_history.maps]))
-
-    @property
-    def list_walkthrough(self) -> typing.List[str]:         #FIXME: list of what?
-        """Convenience function: return a list of the commands that were executed to get
-        the game into this state. Unlike text_walkthrough(), below, this doesn't return
-        a single string that includes all commands, but rather a list in which each item
-        is a single textual command.
-        """
-        return list(reversed([frame['command'] for frame in self.context_history.maps]))
-
-    @property
-    def text_walkthrough(self) -> str:
-        """Convenience function: get a terse walkthrough consisting of the commands
-        that produced the 'terp's current game state. Unlike list_walkthrough(), above,
-        what is returned is a single string representing the entire walkthrough, in
-        which steps are separated by periods, rather than a list of steps.
-
-        This function is used to produce keys that index the current solution space for
-        algorithmic-progress-checkpointing purposes, among other purposes.
-        """
-        return '. '.join(self.list_walkthrough).upper() + '.'
-
-    @property
-    def current_room(self) -> str:
-        """Convenience function: get the name of the room currently occupied by the PC, if
-        we can tell what room that is; otherwise, return a string indicating we don't
-        know.
-        """
-        return self.context_history['room'] if ('room' in self.context_history) else '[unknown]'
-
-    @property
-    def last_command(self) -> str:
-        """Convenience function: returns the last command passed into the 'terp, if there
-        has been one; otherwise, returns None.
-        """
-        return self.context_history['command'] if ('command' in self.context_history) else None
-
-    @property
-    def peek_at_inventory(self) -> typing.List[str]:
-        """Returns what the TerpConnection thinks is the current inventory. Note that this
-        does not actually execute an INVENTORY command, which is in any case executed
-        automatically at every turn; it just returns the result of the last INVENTORY
-        command, which the 'terp stores.
-
-        Use the all-caps INVENTORY convenience function to pass a new INVENTORY command
-        to the 'terp and get the results of that.
-        """
-        return self.context_history['inventory'] if ('inventory' in self.context_history) else list()
-
-    @property
-    def _all_checkpoints(self) -> typing.List[Path]:
-        """Convenience function to get a list of all checkpoints currently tracked by the TerpConnection."""
-        return [frame['checkpoint'] for frame in self.context_history.maps if 'checkpoint' in frame]
-
-    def has(self, what: str) -> bool:
-        """Returns True if the PC currently has WHAT in her inventory, False otherwise.
-        WHAT is a string that is compared case-insensitively to see if it's a partial
-        match for anything in the PC's inventory. So, has('batt') returns True if the
-        PC is carrying "a battery" or "two batteries" or "a base ball batt".
-
-        Does not actually issue an in-game INVENTORY command; just peeks at what the
-        result of the last one was. Since INVENTORY commands are issued every turn, then
-        undone, this should be accurate.
-        """
-        what = what.lower().strip()
-        inventory = [i.lower().strip() for i in self.peek_at_inventory]
-        for item in inventory:
-            if what in item:
-                return True
-        return False
 
     def create_progress_checkpoint(self) -> None:
         """Update the dictionary that keeps track of which possible branches of the problem
@@ -1071,7 +725,7 @@ class TerpConnection(object):
         }
 
         if (datetime.datetime.now() - last_checkpoint_time).seconds >= minimum_checkpointing_interval:
-            debug_print("(preparing to save algorithm progress data.)", 2)
+            tc.debug_print("(preparing to save algorithm progress data.)", 2)
             clean_progress_data()
 
             try:
@@ -1081,237 +735,22 @@ class TerpConnection(object):
                 self.writer.start()
             last_checkpoint_time = datetime.datetime.now()
 
-    def _pass_command_in(self, command: str) -> None:
-        """Passes a command in to the 'terp. This is a low-level atomic-type function that
-        does nothing other than pass a command in to the 'terp. It doesn't read the
-        output or do anything else about the command or its results. It just
-        passes a command in to the 'terp.
+    def _set_up(self) -> None:
+        """Perform some additional checks before calling the superclass method.
         """
-        debug_print("(passing command %s to 'terp)" % command.upper(), 4)
-        command = (command.strip() + '\n')
-        self._proc.stdin.write(command)
-        self._proc.stdin.flush()
+        self._validate_directory(self.successful_paths_directory, "successful paths")
+        tc.TerpConnection._set_up(self)
 
-    def process_command_and_return_output(self, command: str,
-                                          be_patient: bool = True) -> str:
-        """A convenience wrapper: passes a command into the 'terp, and returns whatever text
-        the 'terp barfs back up. Does minimal processing on the command passed in -- it
-        adds a newline (or rather, a newline is added by a function that is called by
-        this function) -- and no processing on the output text. (All text is processed
-        using the system default encoding because we're in text mode, or "universal
-        newlines" mode, if you prefer. Heck, Python 3.6 does so prefer.) In particular,
-        it performs no EVALUATION of the text's output. leaving that to other code.
-
-        If BE_PATIENT is True, passes True to _get_output()'s RETRY parameter, so that
-        it will be more patient while waiting for output. If not--and there are some
-        annoying situations where the 'terp doesn't cough up any response--then just
-        don't bother waiting if we can't get anything on the first attempt.
-        """
-        self._pass_command_in(command)
-        return self._get_output(retry=be_patient)
-
-    def save_terp_state(self) -> Path:
-        """Saves the interpreter state. It does this solely by causing the 'terp to
-        generate a save file. It automagically figures out an appropriate file name
-        in the SAVE_FILE_DIRECTORY, and returns a Path object describing the location
-        of the save file. It does not make any effort to save anything that is not
-        stored in the 'terp's save files. Things not saved include, but may not be
-        limited to, SELF's context_history mappings.
-        """
-        found_name = False
-        while not found_name:
-            p = save_file_directory / str(uuid.uuid4())
-            found_name = not p.exists()                         # Yes, vulnerable to race conditions, Vanishingly so, though. Still, be careful.
-        debug_print("(saving 'terp state to %s)" % p, 5)
-        _ = self.process_command_and_return_output('save', be_patient=False)   # We can't expect to get a response here: the 'terp doesn't necessarily end it's response with \n, because it's waiting for a response on the same line, so we won't get the prompt text until after we've passed the prompt answer in.
-        output = self.process_command_and_return_output(os.path.relpath(p, base_directory))
-        if ("save failed" in output.lower()) or (not p.exists()):
-            document_problem(problem_type='save_failed', data={'filename': str(p), 'output': [_, output], 'exists': p.exists()})
-        return p
-
-    def _restore_terp_to_save_file(self, save_file_path: Path) -> bool:
-        """Restores the 'terp state to the state represented by the save file at
-        SAVE_FILE_PATH. Returns True if the restoring action was successful, or False if
-        it failed.
-        """
-        _ = self.process_command_and_return_output('restore', be_patient=False)
-        output = self.process_command_and_return_output(os.path.relpath(save_file_path))
-        return not ('failed' in output.lower())
-
-    def _undo_if_possible_or_restore(self, save_file_path: Path) -> bool:
-        """Tries to issue an UNDO command. If that fails for some reason, issue a
-        RESTORE command instead. Returns True if one of these succeeded, or False
-        if neither was successful
-        """
-        if self.UNDO:
-            return True
-        else:
-            return self._restore_terp_to_save_file(save_file_path)
-
-    def _get_inventory(self) -> typing.List[str]:
-        """Executes an INVENTORY command and undoes it, then interprets the results of
-        the command.
-        """
-        debug_print("(getting PC inventory)", 4)
-        inventory_text = self.process_command_and_return_output('inventory')
-        if not self.UNDO():
-            debug_print("Warning! Unable to undo INVENTORY command.", 2)
-        ret = list([l.strip() for l in inventory_text.split('\n') if (l.strip() and not l.strip().strip('>').lower().startswith("you're carrying:"))])
-        try:
-            ret = ret[1 + list([l.lower().strip() for l in ret]).index('you are carrying:'):]
-        except (ValueError, IndexError) as errr:
-            document_problem('cannot_get_inventory', data={'inventory_text': inventory_text, 'note': "'you are carrying:' not in output text!"})
-        return ret
-
-    def restore_terp_state(self) -> None:
-        """Restores the 'terp to the previous state. Does not handle housekeeping for any
-        other aspect of the TerpConnection; notably, does not drop the context_history
-        frame from the context history stack.
-        """
-        debug_print("(restoring 'terp state to previous save file)", 5)
-        assert 'checkpoint' in self.context_history.maps[1], "ERROR: trying to restore to a state for which there is no save file!"
-        self._restore_terp_to_save_file(self.context_history.maps[1]['checkpoint'])
-
-    def UNDO(self) -> typing.Union[bool, None]:
-        """Convenience function: undo the last turn in the 'terp. Returns True if the
-        function executes an UNDO successfully, or False if it does not.
-        """
-        txt = self.process_command_and_return_output('undo')
-        if """you can't "undo" what hasn't been done""".lower() in txt.lower():
-            return True         # "Nothing was done" is as good as successfully undoing. =)
-        if not txt:
-            document_problem(problem_type="cannot_undo", data={'output': None})
-            return False
-        if "undone.]" in txt.lower():
-            return True
-        else:
-            document_problem(problem_type="cannot_undo", data={"output": txt, 'note': '"undone.]" not in output!'})
-
-    def LOOK(self) -> None:
-        """Convenience function: execute the LOOK command in the 'terp, print the results,
-        and undo the command.
-        """
-        safe_print(self.process_command_and_return_output('look'))
-        if not self.UNDO():
-            debug_print('WARNING: unable to undo LOOK command!', 2)
-
-    def SCRIPT(self) -> None:
-        """Determines an appropriate transcript name, and issues a SCRIPT command to the
-        'terp to cause a transcript to be kept at that location.
-        """
-        found_name = False
-        while not found_name:
-            p = working_directory / ('transcript_' + datetime.datetime.now().isoformat().replace(':', '_'))
-            found_name = not p.exists()  # Yes, vulnerable to race conditions, Vanishingly so, though.
-        debug_print("(saving transcript to %s)" % p, 5)
-        _ = self.process_command_and_return_output('script', be_patient=False)
-        _ = self.process_command_and_return_output(os.path.relpath(p, base_directory))
-
-    def INVENTORY(self) -> None:
-        """Convenience wrapper: print the current inventory to the console, then undo the
-        in-game action.
-        """
-        safe_print(self._get_inventory())
-
-    def Y(self, be_patient=False) -> None:
-        """Sends a Y ("yes") command to the 'terp."""
-        _ = self.process_command_and_return_output('Y', be_patient=be_patient)
-
-    def QUIT(self) -> None:
-        """Sends a QUIT command to the 'terp, then keeps sending it Y commands until
-        it gives up.
-        """
-        _ = self.process_command_and_return_output('QUIT', be_patient=False)
-        try:
-            start_time, iterations = datetime.datetime.now(), 0
-            while (iterations <= 20) and ((datetime.datetime.now() - start_time).total_seconds() <= 30):
-                _ = self.Y(be_patient=(iterations == 0))
-                if iterations:
-                    time.sleep(0.1)
-                iterations += 1
-        except BaseException:
-            pass
-
-    def evaluate_context(self, output: str,
-                         command: str) -> typing.Dict[str, typing.Union[str, int, bool, Path, typing.List[str]]]:
-        """Looks at the output retrieved after running a command and infers as much as it
-        can from the output text, then returns a dictionary object that has fields with
-        defined names that represents the data in a structured manner.
-
-        Defined field names:
-          'room'        If the function detects that the 'terp is signaling which room
-                        the player is in, this is the name of that room.
-          'inventory'   A list: the player's inventory.
-          'time'        The ("objective," external) clock time at this point in the
-                        story.
-          'turns'       In narrative through-play sequence, which turn number is this?
-          'checkpoint'  A full path to a save-state file that was saved as the context
-                        was being evaluated, i.e. right after the command was executed.
-          'command'     The command that was executed to bring the 'terp into the state
-                        represented by this context frame.
-          'output'      The game's output that we're processing: the response to the
-                        "entered" command.
-          'failed'      If the function detects that the mission failed, this is True.
-          'success'     If we detect that our mission has succeeded ('we have won'),
-                        this is True, otherwise False.
-          'mistake'     If we detect that the 'terp thinks the command is a mistake (e.g.,
-                        if the command we're trying opens a door that isn't there), this
-                        is set to True, otherwise False.
-        """
-        debug_print("(evaluating command results)", 4)
-        output_lines = [l.strip() for l in output.split('\n')]
-        output_lower = output.lower().strip()
-        ret = {'time': None, 'command': command,
-               'failed': False, 'success': False, 'mistake': False,
-               'output': output}
-        try:
-            ret['turns'] = 1 + len(self.context_history.maps)
-        except AttributeError:      # The very first time we run, context_history doesn't exist yet!
-            ret['turns'] = 1
-        # Next, check to see what time it is, if we can tell.
-        for t in [l[l.rfind("4:"):].strip() for l in output_lines if '4:' in l]:        # Time is always 4:xx:yy AM.
-            ret['time'] = t
-        # Next, check for complete failure. Then, check for game-winning success.
-        for m in failure_messages:
-            if m in output_lower:
-                ret['failed'] = True
-                return ret
-        for m in success_messages:
-            if m in output_lower:
-                ret['success'] = True
-                return ret
-        for l in [line for line in output_lines if line.startswith('**')]:
-            if l == "*******":
-                pass        # This is just a textual separator that turns up occasionally. Ignore it.
-            else:
-                document_problem('asterisk_line', data={'line': l, 'note': "Cannot interpret this game-ending asterisk line!"})
-
-        # Next, check for disambiguation questions, then mistakes.
-        # In each case, see if anything in the appropriate list BEGINS OR ENDS any output line.
-        for l in [line.strip().lower() for line in output_lines]:
-            for m in disambiguation_messages:
-                if l.startswith(m) or l.endswith(m):
-                    document_problem(problem_type='disambiguation', data=ret)
-                    ret['mistake'] = True
-                    return ret
-            for m in mistake_messages:
-                if l.startswith(m) or l.endswith(m):
-                    ret['mistake'] = True
-                    return ret
-
-        # Next, check to see if we're in a new room. Room names appear on their own line. Luckily, it seems that ATD
-        # never winds up adding notes like "(inside the prototype)" to the end of location names.
-        for l in [l.strip().lower() for l in output_lines]:
-            if l in rooms:
-                ret['room'] = l
-        if not ret['success'] and not ret['failed'] and not ret['mistake']:        # Don't bother trying these if the game's over or we made no change.
-            ret['checkpoint'] = self.save_terp_state()
-            ret['inventory'] = self._get_inventory()
-        return ret
+    def _clean_up(self) -> None:
+        tc.TerpConnection._clean_up(self)
+        if self.checkpoint_writer:
+            tc.debug_print("Waiting on checkpoint writer to finish writing checkpoints ...")
+            self.checkpoint_writer.join()
+            tc.debug_print("    ... all checkpoints written.")
 
 
-terp_proc = TerpConnection()
-safe_print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
+terp_proc = ATDTerpConnection()
+tc.safe_print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
 
 
 def execute_command(command: str) -> typing.Dict:           # FIXME: Containing what?
@@ -1333,7 +772,7 @@ def record_solution() -> None:
     found = False
     while not found:
         # FIXME: add current run time to filename.
-        p = successful_paths_directory / (datetime.datetime.now().isoformat().replace(':', '_') + '.json')
+        p = terp_proc.successful_paths_directory / (datetime.datetime.now().isoformat().replace(':', '_') + '.json')
         found = not p.exists()
     p.write_text(json.dumps(solution_steps, default=str, indent=2, sort_keys=True))
     with tarfile.open(name=str(p).rstrip('json') + 'tar.bz2', mode='w:bz2') as save_file_archive:
@@ -1342,7 +781,7 @@ def record_solution() -> None:
             if c.exists():
                 save_file_archive.add(os.path.relpath(c))
             else:
-                debug_print("Warning: unable to add non-existent file %s to archive!" % shlex.quote(str(c)), 2)
+                tc.debug_print("Warning: unable to add non-existent file %s to archive!" % shlex.quote(str(c)), 2)
 
 
 def make_moves(depth: int = 0) -> None:
@@ -1399,18 +838,18 @@ def make_moves(depth: int = 0) -> None:
                 new_context = execute_command(c)
                 if ('checkpoint' not in new_context) or (not new_context['checkpoint'].exists()):
                     if (not new_context['success']) and (not new_context['failed']) and (not new_context['mistake']):
-                        debug_print('WARNING: checkpoint not created for command ' + c.upper() + '!', 1)
+                        tc.debug_print('WARNING: checkpoint not created for command ' + c.upper() + '!', 1)
                 terp_proc._add_context_to_history(new_context)
                 terp_proc.context_history.maps[0]['command'] = c           # Add again in case it got optimized sparsely away.
                 move_result = "VICTORY!!" if new_context['success'] else ('mistake' if new_context['mistake'] else ('failure!' if new_context['failed'] else ''))
-                debug_print(' ' * depth + ('move: (%s, %s) -> %s' % (room_name, c.upper(), move_result)), 3)
+                tc.debug_print(' ' * depth + ('move: (%s, %s) -> %s' % (room_name, c.upper(), move_result)), 3)
                 # Process the new context.
                 if new_context['mistake']:
                     dead_ends += 1
                 elif new_context['failed']:
                     dead_ends += 1
                 elif new_context['success']:
-                    safe_print('Command %s won! Recording ...' % c)
+                    tc.safe_print('Command %s won! Recording ...' % c)
                     record_solution()
                     successes += 1
                     time.sleep(5)   # Let THAT sit there on the debugging screen for a few seconds.
@@ -1418,13 +857,13 @@ def make_moves(depth: int = 0) -> None:
                     maximum_walkthrough_length = max(maximum_walkthrough_length, len(terp_proc.list_walkthrough))
                     make_moves(depth=1+depth)
             except Exception as errrr:
-                document_problem("general_exception", data={'error': errrr, 'command': c})
+                terp_proc.document_problem("general_exception", data={'error': errrr, 'command': c})
                 sys.exit(1)
             finally:
                 moves += 1
                 total = dead_ends + successes
                 if (total % 1000 == 0) or ((verbosity >= 2) and (total % 100 == 0)) or ((verbosity >= 4) and (total % 20 == 0)):
-                    safe_print(f"Explored {total} complete paths so far, making {moves} total moves in %.2f hours" % (get_total_time()/3600))
+                    tc.safe_print(f"Explored {total} complete paths so far, making {moves} total moves in %.2f hours" % (get_total_time() / 3600))
                 terp_proc._restore_terp_to_save_file(starting_frame['checkpoint'])
                 terp_proc._drop_history_frame()
     if len(terp_proc.context_history.maps) % 4 == 0:
@@ -1441,14 +880,14 @@ def play_game() -> None:
 def processUSR1(*args, **kwargs) -> None:
     """Handle the USR1 signal by cycling through available debugging verbosity levels."""
     global verbosity
-    verbosity = (verbosity + 1) % (1 + maximum_verbosity_level)
-    safe_print("\nDebugging verbosity changed to %d" % verbosity)
+    verbosity = (verbosity + 1) % (1 + tc.maximum_verbosity_level)
+    tc.safe_print("\nDebugging verbosity changed to %d" % verbosity)
 
 
 def processUSR2(*args, **kwargs) -> None:
     """Handle the USR2 signal printing the current progress, then pausing for a moment."""
-    safe_print("\nCurrent path is:\n" + terp_proc.text_walkthrough)
-    safe_print("\n\n")
+    tc.safe_print("\nCurrent path length is: %s" % len(terp_proc.text_walkthrough))
+    tc.safe_print("Current path is:\n" + terp_proc.text_walkthrough + "\n\n")
     time.sleep(2)
 
 
@@ -1456,45 +895,20 @@ def processSigInt(*args, **kwargs):
     """When ctrl-C is pushed or SIGINT is otherwise received, clean up gracefully.
     """
     try:
-        safe_print("Caught Ctrl-C or other SIGINT; cleaning up ...")
-        terp_proc._clean_up()
+        tc.safe_print("Caught Ctrl-C or other SIGINT; cleaning up ...")
+        terp_proc._definitely_quit()
         time.sleep(2)
     except NameError:           # If we're getting here without having set everything up, then just bail.
         pass
-    safe_print()
+    tc.safe_print()
     sys.exit(0)
-
-
-def validate_directory(p: Path, description: str) -> None:
-    """Checks to make sure that directory with path P and textual description
-    DESCRIPTION does in fact exist and is in fact a directory. Lets the program
-    crash if that is not true, on the theory that that needs to be fixed before we
-    can move forward.
-    """
-    if p.exists():
-        assert p.is_dir(), "ERROR: %s exists, but is not a directory!" % p
-    else:
-        p.mkdir()
-        safe_print("    successfully created %s directory %s" % (description, shlex.quote(str(p))))
-
-
-def empty_save_files() -> None:
-    """Empty the save-file directory before beginning the run."""
-    debug_print('(emptying saved-games directory ...)', 2)
-    # Careful not to erase the single checkpoint file that's already been created by terp_connection.__init__()!
-    files_to_erase = [f for f in save_file_directory.glob('*') if not f in terp_proc._all_checkpoints]
-    for sav in files_to_erase:
-        debug_print("(deleting %s ...)" % sav, 3)
-        sav.unlink()
 
 
 def interpret_command_line() -> None:
     """Sets global variables based on command-line parameters. Also handles other
     aspects of command-line processing, such as responding to --help.
     """
-    global verbosity, transcript
-    global interpreter_location, story_file_location
-    debug_print("  processing command-line arguments!", 2)
+    tc.debug_print("  processing command-line arguments!", 2)
     parser = argparse.ArgumentParser(description=module_docstring)
     parser.add_argument('--verbose', '-v', action='count',
                         help="increase how chatty the script is about what it's doing")
@@ -1508,12 +922,12 @@ def interpret_command_line() -> None:
 
     if args['script']:
         terp_proc.SCRIPT()              # We didn't start when its __init__() was called. Start now.
-    verbosity += args['verbose'] or 0
-    verbosity -= args['quiet'] or 0
-    interpreter_location = args['interpreter'] or interpreter_location
-    story_file_location = args['story'] or story_file_location
+    tc.verbosity += args['verbose'] or 0
+    tc.verbosity -= args['quiet'] or 0
+    terp_proc.interpreter_location = args['interpreter'] or terp_proc.interpreter_location
+    terp_proc.story_file_location = args['story'] or terp_proc.story_file_location
 
-    debug_print('  command-line arguments are:' + pprint.pformat(args), 2)
+    tc.debug_print('  command-line arguments are:' + pprint.pformat(args), 2)
 
 
 def load_progress_data() -> None:
@@ -1522,45 +936,37 @@ def load_progress_data() -> None:
     """
     global dead_ends, successes, script_run_start, moves, maximum_walkthrough_length
     global progress_data
+
     try:
-        with open(progress_checkpoint_file, mode='rt') as pc_file:
+        with open(terp_proc.progress_checkpoint_file, mode='rt') as pc_file:
             progress_data = json.load(pc_file)
             script_run_start = datetime.datetime.now() - datetime.timedelta(seconds=max([t['time'] for t in progress_data.values()]))
             dead_ends = max([t['dead ends'] for t in progress_data.values()])
             successes = max([t['successes'] for t in progress_data.values()])
             moves = max([t['total moves'] for t in progress_data.values()])
             maximum_walkthrough_length = max([t['maximum walkthrough length'] for t in progress_data.values()])
-        safe_print("Successfully loaded previous progress data!")
+        tc.safe_print("Successfully loaded previous progress data!")
     except Exception as errr:                   # Everything was initialized up top, anyway.
-        safe_print("Can't restore progress data: starting from scratch!")
-        debug_print("Exception causing inability to read previous data: %s" % errr, 1)
+        tc.safe_print("Can't restore progress data: starting from scratch!")
+        tc.debug_print("Exception causing inability to read previous data: %s" % errr, 1)
 
 
 def set_up() -> None:
-    """Set up the many fiddly things that the experiment requires."""
-    debug_print("setting up program run!", 2)
+    """Set up the many fiddly things that the experiment requires,but that aren't
+    set up by the TerpConnection object itself.
+    """
+    tc.debug_print("setting up program run!", 2)
 
     signal.signal(signal.SIGUSR1, processUSR1)
     signal.signal(signal.SIGUSR2, processUSR2)
     signal.signal(signal.SIGINT, processSigInt)         # Force immediate exit on
-    debug_print("  signal handlers installed!", 2)
-
-    empty_save_files()                                  # Get rid of leftover save files from previous runs -- we regenerate for each step that gets executed along the way, anyway.
+    tc.debug_print("  signal handlers installed!", 2)
 
     if len(sys.argv) > 1:
         interpret_command_line()
     else:
-        debug_print("  no command-line arguments!", 2)
-    debug_print('  final verbosity is: %d' % verbosity, 2)
-
-    # Set up the necessary directories. Not particularly robust against malicious interference and race conditions,
-    # but this script is just for me, anyway. Assumes a cooperative, reasonably competent user.
-    debug_print("  about to check directory structure ...", 2)
-    validate_directory(working_directory, "working")
-    validate_directory(save_file_directory, "save file")
-    validate_directory(successful_paths_directory, "successful paths")
-    validate_directory(logs_directory, 'logs')
-    debug_print("  directory structure validated!")
+        tc.debug_print("  no command-line arguments!", 2)
+    tc.debug_print('  final verbosity is: %d' % verbosity, 2)
 
     load_progress_data()
 
@@ -1570,5 +976,5 @@ def main():
     play_game()
 
 if __name__ == "__main__":
-    safe_print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
+    tc.safe_print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
     sys.exit(1)
