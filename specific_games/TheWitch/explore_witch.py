@@ -54,5 +54,5 @@ with open(witch_transcript_file, mode='rt', encoding='utf-8') as trans_file:
 commands = [l.strip().strip('>').strip() for l in supplied_transcript if l.strip().startswith('>')]
 
 for c in commands:
-    tc.safe_print(f"> {c}\n")
+    tc.safe_print(f"\n\n> {c}\n")
     tc.safe_print(terp.process_command_and_return_output(c))

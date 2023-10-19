@@ -272,7 +272,6 @@ class TerpConnection(object):
         assert self.save_file_directory.is_dir(), f"ERROR! {self.save_file_directory} does not exist or is not a directory!"
         assert self.logs_directory.is_dir(), f"ERROR! {self.logs_directory} does not exist or is not a directory!"
 
-        self._set_up()
 
         parameters = [str(self.interpreter_location)] + self.interpreter_flags + [str(self.story_file_location)]
         self._proc = subprocess.Popen(parameters, shell=False, universal_newlines=True, bufsize=1,
@@ -280,6 +279,7 @@ class TerpConnection(object):
         self._reader = NonBlockingStreamReader(self._proc.stdout)
         opening_context = self.evaluate_context(self._get_output(), command='[game start]')
         self.context_history = collections.ChainMap(opening_context)
+        self._set_up()
         if self.transcript:
             self.SCRIPT()
 
