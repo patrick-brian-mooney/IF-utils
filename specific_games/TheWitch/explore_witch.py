@@ -11,8 +11,10 @@ LICENSE for a copy of this license.
 """
 
 
+import json
 import os
 from pathlib import Path
+import typing
 
 import terp_connection as tc
 
@@ -45,6 +47,69 @@ class WitchConnection(tc.TerpConnection):
     save_file_directory = working_directory / 'saves'
     logs_directory = working_directory / 'logs'
 
+    def _generate_save_name(self) -> Path:
+        """Generate a filename for an auto-save file from the 'terp. Can be overridden
+        by subclasses. By default, just use a UUID4. Subclasses may want to generate
+        more human-meaningful names.
+        """
+        try:
+            return (self.save_file_directory / f"{len(self.context_history.maps):03d}")
+        except (AttributeError,):
+            return (self.save_file_directory / "000 - beginning")
+
+    def _get_score_and_winnability(self, output_lines: typing.List[str]
+                                   ) -> typing.Tuple[typing.Union[int, None], typing.Union[bool, None]]:
+        """Returns a tuple (score, winnable), where score is the current game score
+        and winnable is whether the game self-evaluates as winnable at that point.
+
+        OUTPUT_LINES is assumed to already be in casefold case.
+
+        Either component of the tuple will be None if we cannot get the answer from
+        the 'terp.
+        """
+        score, winnable = None, None
+
+        # the score appears in the location line. Let's find that line and dig the score out.
+        for l in output_lines:
+            if l.startswith(self.rooms):
+                location_line = l
+                components = [part for part in location_line.split() if part]
+                if 'score:' not in components:
+                    continue
+                score_component = components[1 + components.index('score:')]
+                try:
+                    score = int(score_component.strip())
+                    break
+                except (IndexError,):
+                    pass
+
+        # OK, let's get the game's own evaluation of whether it's winnable at this point.
+        score_text = self._get_score_text().strip().casefold()
+        if "the game is winnable from this point" in score_text:
+            winnable = True
+        elif "game is *not* winnable from this point" in score_text:
+            winnable = False
+
+        return score, winnable
+
+    def evaluate_context(self, output: str,
+                         command: str) -> typing.Dict[str, typing.Union[str, int, bool, Path, typing.List[str]]]:
+        """Overrides the superclass method to scrape additional data from the 'terp
+        output for data that is specifically meant to be gathered for The Witch.
+
+        Additional fields defined here:
+
+          'score'       The current game score.
+          'winnable'    Whether the game self-evaluates as winnable.
+        """
+        ret = tc.TerpConnection.evaluate_context(self, output, command)
+        output_lines = [l.strip().casefold() for l in output.split('\n')]
+
+        # Check to see what time it is, if we can tell.
+        ret['score'], ret['winnable'] = self._get_score_and_winnability(output_lines)
+
+        return ret
+
 
 terp = WitchConnection()
 
@@ -55,4 +120,11 @@ commands = [l.strip().strip('>').strip() for l in supplied_transcript if l.strip
 
 for c in commands:
     tc.safe_print(f"\n\n> {c}\n")
-    tc.safe_print(terp.process_command_and_return_output(c))
+    tc.safe_print(terp.make_single_move(c)['output'])
+
+with open(terp.base_directory / 'game log.json', mode='wt', encoding='utf-8') as json_file:
+    data = list()
+    while terp.context_history.maps:
+        data = data + [dict(terp.context_history)]
+        terp.context_history.maps = terp.context_history.maps[1:]
+    json_file.write(json.dumps(list(reversed(data)), ensure_ascii=True, indent=2, default=str, sort_keys=True))
