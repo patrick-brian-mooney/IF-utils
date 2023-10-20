@@ -195,18 +195,21 @@ class TerpConnection(object):
 
     disambiguation_messages = ["which do you mean", "please give one of the answers above"]
 
-    failure_messages = [l.strip().lower() for l in ['*** You have failed ***', ]]
-    success_messages = [l.strip().lower() for l in ['*** Success. Final, lasting success. ***', ]]
-
-    inventory_answer_tag = None # The beginning of a "you are carrying:" response, in casefold-case.
+    failure_messages = [l.strip().casefold() for l in ['*** You have failed ***', ]]
+    success_messages = [l.strip().casefold() for l in ['*** Success. Final, lasting success. ***', ]]
 
     # Configuration options that can be overridden in subclasses
     interpreter_location = Path('/home/patrick/bin/dfrotz/dfrotz').resolve()
     interpreter_flags = ["-m", ]
 
+    save_every_turn = True
+    inventory_every_turn = True
+    create_game_transcript = True
+
     # Configuration options that MUST be overridden in subclasses
     rooms = None
     story_file_location = None
+    inventory_answer_tag = None # The beginning of a "you are carrying:" response, in casefold-case.
 
     # Configuration options related to filesystem paths. They MUST be overridden.
     base_directory = None
@@ -271,7 +274,6 @@ class TerpConnection(object):
         assert self.working_directory.is_dir(), f"ERROR! {self.working_directory} does not exist or is not a directory!"
         assert self.save_file_directory.is_dir(), f"ERROR! {self.save_file_directory} does not exist or is not a directory!"
         assert self.logs_directory.is_dir(), f"ERROR! {self.logs_directory} does not exist or is not a directory!"
-
 
         parameters = [str(self.interpreter_location)] + self.interpreter_flags + [str(self.story_file_location)]
         self._proc = subprocess.Popen(parameters, shell=False, universal_newlines=True, bufsize=1,
@@ -366,7 +368,7 @@ class TerpConnection(object):
         to add "sparsely": it drops information that duplicates the most current
         information in the context chain.
         """
-        new = {k: v for k, v in context.items() if (k not in self.context_history or self.context_history[k] != v)}
+        new = {k: v for k, v in context.items() if ((k not in self.context_history) or (self.context_history[k] != v) or (k.strip().casefold() == "command"))}
         debug_print(f'(adding new frame {new} to context history', 4)
         self.context_history = self.context_history.new_child(new)
 
@@ -400,7 +402,7 @@ class TerpConnection(object):
         return '\n\n'.join(reversed(['> ' + frame['command'] + '\n\n' + frame['output'] for frame in self.context_history.maps]))
 
     @property
-    def list_walkthrough(self) -> typing.List[str]:         #FIXME: list of what?
+    def list_walkthrough(self) -> typing.List[str]:
         """Convenience function: return a list of the commands that were executed to get
         the game into this state. Unlike text_walkthrough(), below, this doesn't return
         a single string that includes all commands, but rather a list in which each item
@@ -462,8 +464,8 @@ class TerpConnection(object):
         result of the last one was. Since INVENTORY commands are issued every turn, then
         undone, this should be accurate.
         """
-        what = what.lower().strip()
-        inventory = [i.lower().strip() for i in self.peek_at_inventory]
+        what = what.casefold().strip()
+        inventory = [i.casefold().strip() for i in self.peek_at_inventory]
         for item in inventory:
             if what in item:
                 return True
@@ -475,7 +477,9 @@ class TerpConnection(object):
         output or do anything else about the command or its results. It just
         passes a command in to the 'terp.
         """
-        debug_print("(passing command %s to 'terp)" % command.upper(), 4)
+        assert isinstance(command, str)
+        debug_print(f"(passing command {command.upper()} to 'terp)", 4)
+
         command = (command.strip() + '\n')
         self._proc.stdin.write(command)
         self._proc.stdin.flush()
@@ -498,6 +502,17 @@ class TerpConnection(object):
         self._pass_command_in(command)
         return self._get_output(retry=be_patient)
 
+    def _generate_save_name(self) -> Path:
+        """Generate a filename for an auto-save file from the 'terp. Can be overridden
+        by subclasses. By default, just use a UUID4. Subclasses may want to generate
+        more human-meaningful names.
+        """
+        found_name = False
+        while not found_name:
+            p = self.save_file_directory / str(uuid.uuid4())
+            found_name = not p.exists() # Vulnerable to race conditions, Vanishingly so, though. Still, be careful.
+        return p
+
     def save_terp_state(self) -> Path:
         """Saves the interpreter state. It does this solely by causing the 'terp to
         generate a save file. It automagically figures out an appropriate file name
@@ -506,15 +521,13 @@ class TerpConnection(object):
         stored in the 'terp's save files. Things not saved include, but may not be
         limited to, SELF's context_history mappings.
         """
-        found_name = False
-        while not found_name:
-            p = self.save_file_directory / str(uuid.uuid4())
-            found_name = not p.exists()                         # Yes, vulnerable to race conditions, Vanishingly so, though. Still, be careful.
+        p = self._generate_save_name()
         debug_print("(saving 'terp state to %s)" % p, 5)
         _ = self.process_command_and_return_output('save', be_patient=False)   # We can't expect to get a response here: the 'terp doesn't necessarily end its response with \n, because it's waiting for a response on the same line, so we won't get the prompt text until after we've passed the prompt answer in.
-        output = self.process_command_and_return_output(os.path.relpath(p, self.base_directory))
-        if ("save failed" in output.lower()) or (not p.exists()):
-            self.document_problem(problem_type='save_failed', data={'filename': str(p), 'output': [_, output], 'exists': p.exists()})
+        output = self.process_command_and_return_output(os.path.relpath(p, self.base_directory), be_patient=False)
+        if ("save failed" in output.casefold()) or (not p.exists()):
+            self.document_problem(problem_type='save_failed',
+                                  data={'filename': str(p), 'output': [_, output], 'exists': p.exists()})
         return p
 
     def _restore_terp_to_save_file(self, save_file_path: Path) -> bool:
@@ -524,7 +537,7 @@ class TerpConnection(object):
         """
         _ = self.process_command_and_return_output('restore', be_patient=False)
         output = self.process_command_and_return_output(os.path.relpath(save_file_path))
-        return not ('failed' in output.lower())
+        return not ('failed' in output.casefold())
 
     def _undo_if_possible_or_restore(self, save_file_path: Path) -> bool:
         """Tries to issue an UNDO command. If that fails for some reason, issue a
@@ -552,6 +565,13 @@ class TerpConnection(object):
             self.document_problem('cannot_get_inventory', data={'inventory_text': inventory_text, 'note': f"'{self.inventory_answer_tag}' not in output text!"})
         return ret
 
+    def _get_score_text(self) -> str:
+        """Executes a SCORE command and returns the text with which the interpreter
+        responds. Does not issue an UNDO command because an extradiegetic command
+        cannot be undone.
+        """
+        return self.process_command_and_return_output('score')
+
     def restore_terp_state(self) -> None:
         """Restores the 'terp to the previous state. Does not handle housekeeping for any
         other aspect of the TerpConnection; notably, does not drop the context_history
@@ -566,12 +586,12 @@ class TerpConnection(object):
         function executes an UNDO successfully, or False if it does not.
         """
         txt = self.process_command_and_return_output('undo')
-        if """you can't "undo" what hasn't been done""".lower() in txt.lower():
+        if """you can't "undo" what hasn't been done""".casefold() in txt.casefold():
             return True         # "Nothing was done" is as good as successfully undoing. =)
         if not txt:
             self.document_problem(problem_type="cannot_undo", data={'output': None})
             return False
-        if "undone.]" in txt.lower():
+        if "undone.]" in txt.casefold():
             return True
         else:
             self.document_problem(problem_type="cannot_undo", data={"output": txt, 'note': '"undone.]" not in output!'})
@@ -602,6 +622,12 @@ class TerpConnection(object):
         """
         safe_print(self._get_inventory())
 
+    def SCORE(self) -> None:
+        """Convenience wrapper: print the result of the SCORE command to the terminal.
+        Does not UNDO, because an extradiegetic action cannot be undone.
+        """
+        safe_print(self._get_score_text())
+
     def Y(self, be_patient=False) -> None:
         """Sends a Y ("yes") command to the 'terp."""
         _ = self.process_command_and_return_output('Y', be_patient=be_patient)
@@ -631,8 +657,6 @@ class TerpConnection(object):
           'room'        If the function detects that the 'terp is signaling which room
                         the player is in, this is the name of that room.
           'inventory'   A list: the player's inventory.
-          'time'        The ("objective," external) clock time at this point in the
-                        story.
           'turns'       In narrative through-play sequence, which turn number is this?
           'checkpoint'  A full path to a save-state file that was saved as the context
                         was being evaluated, i.e. right after the command was executed.
@@ -649,17 +673,18 @@ class TerpConnection(object):
         """
         debug_print("(evaluating command results)", 4)
         output_lines = [l.strip() for l in output.split('\n')]
-        output_lower = output.lower().strip()
-        ret = {'time': None, 'command': command,
-               'failed': False, 'success': False, 'mistake': False,
+        output_lower = output.casefold().strip()
+        ret = {'command': command,
+               'failed': False,
+               'success': False,
+               'mistake': False,
                'output': output}
+
         try:
             ret['turns'] = 1 + len(self.context_history.maps)
         except AttributeError:      # The very first time we run, context_history doesn't exist yet!
             ret['turns'] = 1
-        # Next, check to see what time it is, if we can tell. #FIXME! This is ATD-specific!
-        for t in [l[l.rfind("4:"):].strip() for l in output_lines if '4:' in l]:        # Time is always 4:xx:yy AM.
-            ret['time'] = t
+
         # Next, check for complete failure. Then, check for game-winning success.
         for m in self.failure_messages:
             if m in output_lower:
@@ -677,7 +702,7 @@ class TerpConnection(object):
 
         # Next, check for disambiguation questions, then mistakes.
         # In each case, see if anything in the appropriate list BEGINS OR ENDS any output line.
-        for l in [line.strip().lower() for line in output_lines]:
+        for l in [line.strip().casefold() for line in output_lines]:
             for m in self.disambiguation_messages:
                 if l.startswith(m) or l.endswith(m):
                     self.document_problem(problem_type='disambiguation', data=ret)
@@ -688,16 +713,42 @@ class TerpConnection(object):
                     ret['mistake'] = True
                     return ret
 
-        # Next, check to see if we're in a new room. Room names appear on their own line. Luckily, it seems that ATD
-        # never winds up adding notes like "(inside the prototype)" to the end of location names.
-        for l in [l.strip().casefold() for l in output_lines if l.strip().casefold()]:
+        # Next, check to see if we're in a new room. Room names appear on their own line.
+        for l in [l.strip().casefold() for l in output_lines if l.strip()]:
             if l.startswith(self.rooms):
                 for r in self.rooms:
                     if l.startswith(r):
                         ret['room'] = l[:len(r)]
+                        break
                 break
+
         if not ret['success'] and not ret['failed'] and not ret['mistake']:        # Don't bother trying these if the game's over or we made no change.
-            ret['checkpoint'] = self.save_terp_state()
-            ret['inventory'] = self._get_inventory()
+            if self.save_every_turn:
+                ret['checkpoint'] = self.save_terp_state()
+            if self.inventory_every_turn:
+                ret['inventory'] = self._get_inventory()
+
         return ret
 
+    def execute_command(self, c: str) -> typing.Dict[str, typing.Union[str, int, bool, Path, typing.List[str]]]:
+        """Convenience function: execute the command C and return the new interpreter
+        context as a dictionary with defined values. Note that this changes the 'terp's
+        game state by executing COMMAND, of course: no save/restore bracketing is
+        performed at this level.
+        """
+        text = self.process_command_and_return_output(c)
+        return self.evaluate_context(text, c)
+
+    def make_single_move(self, c: str) -> typing.Dict[str, typing.Union[str, int, bool, Path, typing.List[str]]]:
+        """Make a single move by executing the command C, and add the generated
+        context frame to the play history.
+
+        For convenience's sake, returns the new context frame after adding it to the
+        play history.
+        """
+        new_context = self.execute_command(c)
+        if ('checkpoint' not in new_context) or (not new_context['checkpoint'].exists()):
+            if (not new_context['success']) and (not new_context['failed']) and (not new_context['mistake']):
+                debug_print('WARNING: checkpoint not created for command ' + c.upper() + '!', 1)
+        self._add_context_to_history(new_context)
+        return new_context

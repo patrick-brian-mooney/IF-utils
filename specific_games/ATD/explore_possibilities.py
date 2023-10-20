@@ -43,7 +43,6 @@ import uuid
 
 import terp_connection as tc
 
-
 module_docstring = __doc__
 
 # Next, we'll have some program-configuration parameters, starting with file and directory structure.
@@ -748,19 +747,28 @@ class ATDTerpConnection(tc.TerpConnection):
             self.checkpoint_writer.join()
             tc.debug_print("    ... all checkpoints written.")
 
+    def evaluate_context(self, output: str,
+                         command: str) -> typing.Dict[str, typing.Union[str, int, bool, Path, typing.List[str]]]:
+        """Overrides the superclass method to scrape additional data from the 'terp
+        output for data that is specifically meant to be gathered for ATD.
+
+        Additional fields defined here:
+
+          'time'        The ("objective," external) clock time at this point in the
+                        story.
+        """
+        ret = tc.TerpConnection.evaluate_context(self, output, command)
+        output_lines = [l.strip().casefold() for l in output.split('\n')]
+
+        # Next, check to see what time it is, if we can tell. #FIXME! This is ATD-specific!
+        for t in [l[l.rfind("4:"):].strip() for l in output_lines if '4:' in l]:        # Time is always 4:xx:yy AM.
+            ret['time'] = t
+
+        return ret
+
 
 terp_proc = ATDTerpConnection()
 tc.safe_print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
-
-
-def execute_command(command: str) -> typing.Dict:           # FIXME: Containing what?
-    """Convenience function: execute the command COMMAND and return the new interpreter
-    context as a dictionary with defined values. Note that this changes the 'terp's
-    game state by executing COMMAND, of course: no save/restore bracketing is
-    performed at this level.
-    """
-    text = terp_proc.process_command_and_return_output(command)
-    return terp_proc.evaluate_context(text, command)
 
 
 def record_solution() -> None:
@@ -821,8 +829,7 @@ def make_moves(depth: int = 0) -> None:
     if is_redundant_strand(terp_proc.text_walkthrough):      # If we've tracked that we've been down this path, skip it.
         return
 
-    these_commands = list(all_commands.keys())  # Putting them in random order doesn't make the process go faster ...
-    # random.shuffle(these_commands)              # But it does make it less excruciating to watch, and helps detect large-scale patterns better in early runs.
+    these_commands = list(all_commands.keys())
 
     # Make sure we've got a save file to restore from after we try commands.
     if 'checkpoint' not in terp_proc.context_history.maps[0]:
@@ -833,14 +840,9 @@ def make_moves(depth: int = 0) -> None:
 
     for c_num, c in enumerate(these_commands):
         if all_commands[c](c):  # check to see if we're allowed to try this command right now. If so ...
-            try:                # execute_command() produces a checkpoint that will be used by _unroll(), below.
+            try:                # make_single_move() produces a checkpoint that will be used by _unroll(), below.
                 room_name = terp_proc.current_room
-                new_context = execute_command(c)
-                if ('checkpoint' not in new_context) or (not new_context['checkpoint'].exists()):
-                    if (not new_context['success']) and (not new_context['failed']) and (not new_context['mistake']):
-                        tc.debug_print('WARNING: checkpoint not created for command ' + c.upper() + '!', 1)
-                terp_proc._add_context_to_history(new_context)
-                terp_proc.context_history.maps[0]['command'] = c           # Add again in case it got optimized sparsely away.
+                new_context = terp_proc.make_single_move(c)
                 move_result = "VICTORY!!" if new_context['success'] else ('mistake' if new_context['mistake'] else ('failure!' if new_context['failed'] else ''))
                 tc.debug_print(' ' * depth + ('move: (%s, %s) -> %s' % (room_name, c.upper(), move_result)), 3)
                 # Process the new context.
@@ -974,6 +976,7 @@ def set_up() -> None:
 def main():
     set_up()
     play_game()
+
 
 if __name__ == "__main__":
     tc.safe_print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
