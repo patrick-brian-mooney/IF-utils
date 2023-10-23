@@ -687,6 +687,35 @@ class ATDTerpConnection(tc.TerpConnection):
         "upstairs landing": {"hideable": True},
     }
 
+    mistake_messages = tc.TerpConnection.mistake_messages + [
+        "but it barely leaves a mark.",  "but the glass stays in place.", "but there's no water here",
+        "error: overflow in", "error: unknown door status", "for example, with 'set timer to 30'.",
+        "if you could do that", "is locked in place.", "is that the best you can", "it is not clear what",
+        "nothing happens -- the button must be", "switching on the overhead lights would", "you lack the nerve",
+        "that doesn't seem to be something", "that would scarcely", "that's not something you can",
+        "the challenge can only be initiated in the first turn", "the challenge has already been initiated",
+        "the only exit is", "the only exits are", "the prototype's control panel only accepts", "you have not yet set",
+        "the slot emits a small beep and your card is rejected", "the switch clicks, but no light",
+        "the window appears to be locked", "the window is already", "there is no obvious way to",
+        "there is no way that you could tear them up in time.", "there is nothing here that you could",
+        "there is nothing to", "there's not enough water", "there's nothing sensible", "you can't, since",
+        "there's nothing suitable to drink", "you would achieve nothing", "this one closes of its own accord.",
+        "to set the explosive device, you need to", "try as you might, none of", "you cannot attach the cable to",
+        "until you complete the modifications.", "you would have to", "you are not strong enough to break",
+        "you can hear nothing but", "you can see clearly enough in the gloom.", "you can't see anything of interest",
+        "you cannot get the window open", "you cannot make out any", "you cannot open the door with",
+        "you can\u2019t since", "you cannot see what",  "you cannot do that", "you discover nothing of interest",
+        "you do not have the key", "you won't be able to", "you don't have anything heavy enough",
+        "you don't need to worry about", "you'll have to say which", "your timer only accepts",
+        "you will have to be more specific about", "you would need to be near the prototype",
+        "you would need you id card to",
+    ]
+
+    failure_messages = tc.TerpConnection.failure_messages + [l.strip().casefold() for l in [
+        '*** You have failed ***',]]
+    success_messages = tc.TerpConnection.success_messages + [l.strip().casefold() for l in [
+        '*** Success. Final, lasting success. ***',]]
+
     # Filesystem config options
     base_directory = Path(os.path.dirname(__file__)).resolve()
     working_directory = base_directory / 'working'

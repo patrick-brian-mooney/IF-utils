@@ -144,59 +144,29 @@ class TerpConnection(object):
     """
     # First, some constants used by the code to deal with dfrotz output
     mistake_messages = [""""oops" can only correct""", "after a few moments, you realise that", "already closed.",
-                        "beg your pardon?", "but it barely leaves a mark.", "but the glass stays in place.",
-                        "but there's no water here", "but you aren't", "but you aren't in anything",
+                        "beg your pardon?", "but you aren't", "but you aren't in anything",
                         "darkness, noun.  an absence of light", "digging would achieve nothing here", "does not open.",
-                        "error: overflow in", "error: unknown door status", "error: unknown reason for",
-                        "for a while, but don't achieve much.", "for example, with 'set timer to 30'.",
-                        "i didn't understand that", "i didn't understand the way",
-                        "i don't think much is to be achieved",
-                        "i only understood you as far as", "if you could do that",
-                        "impossible to place objects on top of it.", "is already here.", "is locked in place.",
-                        "is that the best you can", "it is not clear what", "it is pitch dark, and you can't",
-                        "no pronouns are known to the game", "nothing happens -- the button must be",
+                        "error: unknown reason for", "for a while, but don't achieve much.", "i didn't understand that",
+                        "i didn't understand the way", "i don't think much is to be achieved",
+                        "i only understood you as far as", "impossible to place objects on top of it.",
+                        "is already here.", "it is pitch dark, and you can't", "no pronouns are known to the game",
                         "nothing practical results", "real adventurers do not", "seem to be something you can lock.",
                         "seem to be something you can unlock.", "sorry, you can only have one",
-                        "switching on the overhead lights would", "that doesn't seem to be something",
-                        "that would be less than courteous", "that would scarcely", "that's not a verb i recognise",
-                        "that's not something you can", "that's not something you need to refer to",
-                        "the challenge can only be initiated in the first turn",
-                        "the challenge has already been initiated",
-                        "the dreadful truth is, this is not a dream.", "the only exit is", "the only exits are",
-                        "the prototype's control panel only accepts",
-                        "the slot emits a small beep and your card is rejected",
-                        "the switch clicks, but no light", "the window appears to be locked", "the window is already",
-                        "there is no obvious way to", "there is no way that you could tear them up in time.",
-                        "there is nothing here that you could", "there is nothing to", "there's not enough water",
-                        "there's nothing sensible", "there's nothing suitable to drink", "you would achieve nothing",
-                        "this dangerous act would achieve little", "this one closes of its own accord.",
-                        "to set the explosive device, you need to", "to talk to someone, try",
-                        "try as you might, none of",
-                        "until you complete the modifications.", "violence isn't the answer", "you would have to",
-                        "you are not strong enough to break", "you aren't feeling especially",
-                        "you can hear nothing but",
-                        "you can only do that to", "you can only get into something",
-                        "you can only use multiple objects",
-                        "you can see clearly enough in the gloom.", "you can't put something inside",
-                        "you can't put something on", "you can't see any such thing",
-                        "you can't see anything of interest",
-                        "you can't use multiple objects", "you can't, since", "you cannot attach the cable to",
-                        "you cannot get the window open", "you cannot make out any", "you cannot open the door with",
-                        "you cannot see what", "you can\u2019t since", "you cannot do that", "you're carrying too many",
-                        "you discover nothing of interest", "you do not have the key", "you won't be able to",
-                        "you don't have anything heavy enough", "you don't need to worry about",
-                        "you'll have to say which",
-                        "you excepted something not included", "you have not yet set",
-                        "you jump on the spot, fruitlessly",
-                        "you lack the nerve", "you see nothing", "you seem to have said too little",
-                        "your timer only accepts",
-                        "you seem to want to talk to someone, but", "you will have to be more specific about",
-                        "you would need to be near the prototype", "you would need you id card to",]
+                        "that would be less than courteous", "that's not a verb i recognise",
+                        "that's not something you need to refer to", "the dreadful truth is, this is not a dream.",
+                        "this dangerous act would achieve little", "to talk to someone, try",
+                        "violence isn't the answer", "you aren't feeling especially", "you can only do that to",
+                        "you can only get into something", "you can only use multiple objects",
+                        "you can't put something inside", "you can't put something on", "you can't see any such thing",
+                        "you can't use multiple objects", "you're carrying too many",
+                        "you excepted something not included", "you jump on the spot, fruitlessly", "you see nothing",
+                        "you seem to have said too little", "you seem to want to talk to someone, but",
+                        ]
 
     disambiguation_messages = ["which do you mean", "please give one of the answers above"]
 
-    failure_messages = [l.strip().casefold() for l in ['*** You have failed ***', ]]
-    success_messages = [l.strip().casefold() for l in ['*** Success. Final, lasting success. ***', ]]
+    failure_messages = [l.strip().casefold() for l in ['*** You have died ***,']]
+    success_messages = [l.strip().casefold() for l in ['*** You have won ***',]]
 
     # Configuration options that can be overridden in subclasses
     interpreter_location = Path('/home/patrick/bin/dfrotz/dfrotz').resolve()
