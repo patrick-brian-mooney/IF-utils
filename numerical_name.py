@@ -13,7 +13,7 @@ safe to wrap the phrases in quotes if you're unsure.
 
 Uses only the ASCII Roman-script letters, assumes the ordering of the English
 alphabet, and converts all letters to uppercase. If "word" contains spaces or
-other whitespace, splits the string on whitespace and returns a separate some
+other whitespace, splits the string on whitespace and returns a separate sum
 for each word in the split.
 
 This script is copyright 2021 by Patrick Mooney. It is released to the public

@@ -49,16 +49,19 @@ morse = {(DOT, DASH): 'A',
          }
 
 
-def is_upper(what:str) -> bool:
-    """Convenience function: is WHAT uppercase, in Python's understanding?"""
+def is_upper(what: str) -> bool:
+    """Convenience function: is WHAT uppercase, in Python's understanding?
+    """
     return what.isupper()
 
 
-def decode(what:str, dash_selection_procedure:function=is_upper, error_tolerant:bool=False) -> str:
+def decode(what: str, 
+           dash_selection_procedure: function = is_upper,
+           error_tolerant: bool = False) -> str:
     """Decode WHAT, returning the decoded message. DASH_SELECTION_PROCEDURE should be a
     function that takes one parameter, an input character, and detects whether it
     constitutes a DOT or a DASH, returning the appropriate value. If ERROR_TOLERANT
-    is True,  untranslatable DOT?DASH sequences are represented by a flag value
+    is True,  untranslatable DOT/DASH sequences are represented by a flag value
     rather than allowing the program to crash.
     """
     try:
