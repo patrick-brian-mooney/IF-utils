@@ -22,7 +22,7 @@ there couldn't be room for THAT MANY simultaneous copies moving around the map
 at the same time.) (N.B. Or rather, it will, once the initial run with the
 unmodified copy has been completed.)
 
-This script is copyright 2019-22 by Patrick Mooney. It is released under the
+This script is copyright 2019-23 by Patrick Mooney. It is released under the
 GPL, either version 3 or (at your option) any later version. See the file
 LICENSE for a copy of this license.
 """
@@ -41,14 +41,11 @@ import shlex, signal, string, sys
 import tarfile, threading, time, typing
 import uuid
 
-import terp_connection as tc
+import mod.terp_connection as tc
+
 
 module_docstring = __doc__
-
-# Next, we'll have some program-configuration parameters, starting with file and directory structure.
-# First: Program-running parameters. Not useful when not on my system. Override with -i  and -s, respectively.
-story_file_location = Path('/home/patrick/games/IF/by author/Ord, Toby/as half sick of shadows/[2004] All Things Devours/devours.z5').resolve()
-
+verbosity = 1
 
 # Global statistics; these are overwritten when restoring state from previous runs.
 dead_ends = 0
@@ -250,7 +247,7 @@ def no_pacing_unless_hiding(c: str) -> bool:
     previous_direction = previous_command[2:].strip()   # The direction we went on the last turn.
     assert current_direction in direction_inverses, "ERROR: we're trying to GO in an undefined direction!"
     if direction_inverses[current_direction] == previous_direction:
-        return terp_proc.rooms[terp_proc.current_room]['hideable']
+        return terp_proc.room_list[terp_proc.current_room]['hideable']
     return True
 
 
@@ -586,12 +583,12 @@ class MetadataWriter(threading.Thread):
 
     To use, create a new object, save a reference to it in the parent object, and
     call its run() method. Initializing the object requires a reference to the
-    parent TerpConnection, plus the data to be written (a JSON-serialized stream).
+    parent FrotzTerpConnection, plus the data to be written (a JSON-serialized stream).
     While the runner is running, data can be appended to its queue from the main
     program thread (or any other thread, really). The thread will keep running until
     the queue is empty, at which time the thread quits, blanking out the reference
     to it that the parent_window object holds. Creation and running of threads are
-    abstracted away by the TerpConnection's .write_data() method, which handles the
+    abstracted away by the FrotzTerpConnection's .write_data() method, which handles the
     whole writing kerfuffle.
     """
     _max_writing_queue_length = 3      # Maximum number of to-write objects tracked.
@@ -666,13 +663,13 @@ class MetadataWriter(threading.Thread):
         self._write()
 
 
-class ATDTerpConnection(tc.TerpConnection):
-    """Subclass that customizes TerpConnection for this particular game in order to
+class ATDTerpConnection(tc.FrotzTerpConnection):
+    """Subclass that customizes FrotzTerpConnection for this particular game in order to
     accomplish the goals of this particular script.
     """
     # The superclass really only requires this to be a list, but in this class it
     # does double duty by using that list as keys to index additional data.
-    rooms = {
+    room_list = {
         "balcony": {"hideable": True},
         "basement corridor": {"hideable": False},
         "basement equipment room": {"hideable": True},
@@ -687,7 +684,15 @@ class ATDTerpConnection(tc.TerpConnection):
         "upstairs landing": {"hideable": True},
     }
 
-    mistake_messages = tc.TerpConnection.mistake_messages + [
+    @property
+    def rooms(self) -> tuple:
+        """Every TerpCLass needs to provide a .rooms attribute listing the names of
+        the rooms in the game in lowercase. We reuse the keys of the .room_list
+        attribute for that
+        """
+        return tuple(self.room_list.keys())
+
+    mistake_messages = tc.FrotzTerpConnection.mistake_messages + [
         "but it barely leaves a mark.",  "but the glass stays in place.", "but there's no water here",
         "error: overflow in", "error: unknown door status", "for example, with 'set timer to 30'.",
         "if you could do that", "is locked in place.", "is that the best you can", "it is not clear what",
@@ -711,15 +716,17 @@ class ATDTerpConnection(tc.TerpConnection):
         "you would need you id card to",
     ]
 
-    failure_messages = tc.TerpConnection.failure_messages + [l.strip().casefold() for l in [
+    failure_messages = tc.FrotzTerpConnection.failure_messages + [l.strip().casefold() for l in [
         '*** You have failed ***',]]
-    success_messages = tc.TerpConnection.success_messages + [l.strip().casefold() for l in [
+    success_messages = tc.FrotzTerpConnection.success_messages + [l.strip().casefold() for l in [
         '*** Success. Final, lasting success. ***',]]
 
     # Filesystem config options
     base_directory = Path(os.path.dirname(__file__)).resolve()
     working_directory = base_directory / 'working'
     progress_checkpoint_file = working_directory / 'progress.json'
+
+    story_file_location = (base_directory / "[2004] All Things Devours/devours.z5").resolve()
 
     save_file_directory = working_directory / 'saves'
     successful_paths_directory = working_directory / 'successful_paths'
@@ -732,7 +739,7 @@ class ATDTerpConnection(tc.TerpConnection):
         process. Wraps its STDOUT stream in a nonblocking wrapper. Saves a reference to
         that wrapper. Initializes the command-history data structure. Does other setup.
         """
-        tc.TerpConnection.__init__(self)
+        tc.FrotzTerpConnection.__init__(self)
         self.checkpoint_writer = None
 
     def create_progress_checkpoint(self) -> None:
@@ -767,10 +774,10 @@ class ATDTerpConnection(tc.TerpConnection):
         """Perform some additional checks before calling the superclass method.
         """
         self._validate_directory(self.successful_paths_directory, "successful paths")
-        tc.TerpConnection._set_up(self)
+        tc.FrotzTerpConnection._set_up(self)
 
     def _clean_up(self) -> None:
-        tc.TerpConnection._clean_up(self)
+        tc.FrotzTerpConnection._clean_up(self)
         if self.checkpoint_writer:
             tc.debug_print("Waiting on checkpoint writer to finish writing checkpoints ...")
             self.checkpoint_writer.join()
@@ -786,7 +793,7 @@ class ATDTerpConnection(tc.TerpConnection):
           'time'        The ("objective," external) clock time at this point in the
                         story.
         """
-        ret = tc.TerpConnection.evaluate_context(self, output, command)
+        ret = tc.FrotzTerpConnection.evaluate_context(self, output, command)
         output_lines = [l.strip().casefold() for l in output.split('\n')]
 
         # Next, check to see what time it is, if we can tell. #FIXME! This is ATD-specific!
@@ -984,7 +991,7 @@ def load_progress_data() -> None:
 
 def set_up() -> None:
     """Set up the many fiddly things that the experiment requires,but that aren't
-    set up by the TerpConnection object itself.
+    set up by the FrotzTerpConnection object itself.
     """
     tc.debug_print("setting up program run!", 2)
 

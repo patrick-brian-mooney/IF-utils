@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Actually run the explore_possibilities code, setting up and seeking successful
-paths through All Things Devours.See the explore_possibilities documentation
-for more details.  This file is just a wrapper that runs the
-Cythonized code in that module.
+paths through All Things Devours. See the explore_possibilities documentation
+for more details. This file is just a wrapper that sets up and runs the code in
+that module.
+
+This script is part of Patrick Mooney's collection of interactive-fiction
+related utilities, and is copyright 2023 by Patrick Mooney. It is released
+under the GPL, either version 3 or (at your option) any later version. See the
+file LICENSE for a copy of this license.
 """
 
 
+import os
+import pprint
 import sys
 
-import pyximport; pyximport.install()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+pprint.pprint(f"Running under {sys.version}\n\nsys.path is {sys.path}\n\n\n\n")
+
 
 import explore_possibilities as ep
 
