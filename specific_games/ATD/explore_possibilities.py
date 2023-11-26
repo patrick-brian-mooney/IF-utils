@@ -45,7 +45,6 @@ import mod.terp_connection as tc
 
 
 module_docstring = __doc__
-verbosity = 1
 
 # Global statistics; these are overwritten when restoring state from previous runs.
 dead_ends = 0
@@ -803,8 +802,7 @@ class ATDTerpConnection(tc.FrotzTerpConnection):
         return ret
 
 
-terp_proc = ATDTerpConnection()
-tc.safe_print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
+terp_proc = None        # we'll reassign this during setup.
 
 
 def record_solution() -> None:
@@ -900,7 +898,7 @@ def make_moves(depth: int = 0) -> None:
             finally:
                 moves += 1
                 total = dead_ends + successes
-                if (total % 1000 == 0) or ((verbosity >= 2) and (total % 100 == 0)) or ((verbosity >= 4) and (total % 20 == 0)):
+                if (total % 1000 == 0) or ((tc.verbosity >= 2) and (total % 100 == 0)) or ((tc.verbosity >= 4) and (total % 20 == 0)):
                     tc.safe_print(f"Explored {total} complete paths so far, making {moves} total moves in %.2f hours" % (get_total_time() / 3600))
                 terp_proc._restore_terp_to_save_file(starting_frame['checkpoint'])
                 terp_proc._drop_history_frame()
@@ -916,10 +914,10 @@ def play_game() -> None:
 
 
 def processUSR1(*args, **kwargs) -> None:
-    """Handle the USR1 signal by cycling through available debugging verbosity levels."""
-    global verbosity
-    verbosity = (verbosity + 1) % (1 + tc.maximum_verbosity_level)
-    tc.safe_print("\nDebugging verbosity changed to %d" % verbosity)
+    """Handle the USR1 signal by cycling through available debugging verbosity levels.
+    """
+    tc.verbosity = (tc.verbosity + 1) % (1 + tc.maximum_verbosity_level)
+    tc.safe_print("\nDebugging verbosity changed to %d" % tc.verbosity)
 
 
 def processUSR2(*args, **kwargs) -> None:
@@ -951,10 +949,6 @@ def interpret_command_line() -> None:
     parser.add_argument('--verbose', '-v', action='count',
                         help="increase how chatty the script is about what it's doing")
     parser.add_argument('--quiet', '-q', action='count', help="decrease how chatty the script is about what it's doing")
-    parser.add_argument('--interpreter', '--terp', '-i', '-t', type=Path,
-                        help="full path to the interpreter used to run All Things Devours")
-    parser.add_argument('--story', '-s', type=Path,
-                        help="full path to the game file played by the interpreter")
     parser.add_argument('--script', action='store_true')
     args = vars(parser.parse_args())
 
@@ -962,8 +956,6 @@ def interpret_command_line() -> None:
         terp_proc.SCRIPT()              # We didn't start when its __init__() was called. Start now.
     tc.verbosity += args['verbose'] or 0
     tc.verbosity -= args['quiet'] or 0
-    terp_proc.interpreter_location = args['interpreter'] or terp_proc.interpreter_location
-    terp_proc.story_file_location = args['story'] or terp_proc.story_file_location
 
     tc.debug_print('  command-line arguments are:' + pprint.pformat(args), 2)
 
@@ -983,7 +975,7 @@ def load_progress_data() -> None:
             successes = max([t['successes'] for t in progress_data.values()])
             moves = max([t['total moves'] for t in progress_data.values()])
             maximum_walkthrough_length = max([t['maximum walkthrough length'] for t in progress_data.values()])
-        tc.safe_print("Successfully loaded previous progress data!")
+        tc.safe_print("\n\nSuccessfully loaded previous progress data!")
     except Exception as errr:                   # Everything was initialized up top, anyway.
         tc.safe_print("Can't restore progress data: starting from scratch!")
         tc.debug_print("Exception causing inability to read previous data: %s" % errr, 1)
@@ -993,24 +985,29 @@ def set_up() -> None:
     """Set up the many fiddly things that the experiment requires,but that aren't
     set up by the FrotzTerpConnection object itself.
     """
+    global terp_proc
+
     tc.debug_print("setting up program run!", 2)
 
     signal.signal(signal.SIGUSR1, processUSR1)
     signal.signal(signal.SIGUSR2, processUSR2)
-    signal.signal(signal.SIGINT, processSigInt)         # Force immediate exit on
+    signal.signal(signal.SIGINT, processSigInt)         # Force immediate exit on Ctrl-C, etc.
     tc.debug_print("  signal handlers installed!", 2)
 
     if len(sys.argv) > 1:
         interpret_command_line()
     else:
         tc.debug_print("  no command-line arguments!", 2)
-    tc.debug_print('  final verbosity is: %d' % verbosity, 2)
+    tc.debug_print('  final verbosity is: %d' % tc.verbosity, 2)
 
+    terp_proc = ATDTerpConnection()
     load_progress_data()
 
 
 def main():
     set_up()
+    tc.safe_print("\n\n  successfully initiated connection to new 'terp! It said:\n\n" + terp_proc.repeat_last_output() + "\n\n")
+
     play_game()
 
 

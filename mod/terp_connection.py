@@ -50,20 +50,17 @@ def safe_print(*args, **kwargs) -> None:
 
 
 def safe_pprint(*args, **kwargs) -> None:
-    """Same as safe_print, but safely pprints instead of printing."""
+    """Same as safe_print, but safely pprints instead of printing.
+    """
     with print_mutex:
         pprint.pprint(*args, **kwargs)
 
 
 def debug_print(what: str, min_level: int=1) -> None:
-    """Print WHAT, if the global VERBOSITY is at least MIN_LEVEL."""
+    """Print WHAT, if the global VERBOSITY is at least MIN_LEVEL.
+    """
     if verbosity >= min_level:
         safe_print(" " * min_level + what)       # Indent according to unimportance level.
-
-
-if __name__ == "__main__":
-    safe_print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
-    sys.exit(1)
 
 
 # Here's a utility class used to wrap an output stream for the FrotzTerpConnection, below.
@@ -583,9 +580,10 @@ class FrotzTerpConnection(object):
         while not found_name:
             p = self.working_directory / ('transcript_' + datetime.datetime.now().isoformat().replace(':', '_'))
             found_name = not p.exists()  # Yes, vulnerable to race conditions, Vanishingly so, though.
-        debug_print("(saving transcript to %s)" % p, 5)
+        debug_print("(saving transcript to %s)" % p, 3)
         _ = self.process_command_and_return_output('script', be_patient=False)
-        _ = self.process_command_and_return_output(os.path.relpath(p, self.base_directory))
+        # _ = self.process_command_and_return_output(os.path.relpath(p, self.base_directory))
+        _ = self.process_command_and_return_output(os.path.relpath(p, Path(os.getcwd())))
 
     def INVENTORY(self) -> None:
         """Convenience wrapper: print the current inventory to the console, then undo the
@@ -735,3 +733,8 @@ class HadeanLandsTerpConnection(GlulxeTerpConnection):
     rooms = ()
     story_file_location = Path("""/home/patrick/games/IF/by author/Plotkin, Andrew/[2014] Hadean Lands/HadeanLands.gblorb""")
     inventory_answer_tag = "You are carrying:".strip().casefold()
+
+
+if __name__ == "__main__":
+    safe_print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
+    sys.exit(1)

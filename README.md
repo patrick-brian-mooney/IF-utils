@@ -29,12 +29,6 @@ For each word in a supplied input string, calculates a numerical value for the w
 
 Usage: `numerical_name.py "a phrase"`.
 
-## `terp_connection.py`
-
-A Python module used to maintain a connection to an instance of `frotz` so that commands can be passed in and textual input can be passed out.
-
-Usage: no command-line usage possible; this is a utility intended to be used from other Python code.
-
 ## `text_rotate.py`
 
 Given a phrase, transforms it as ROT-1, ROT-2, ROT-3, ... ROT-25, to help with rotational decoding.
@@ -44,6 +38,9 @@ Usage: `text_rotate.py "A phrase to transform"`
 ## `transcript_utils/visual_transcript/`
 A series of scripts intended to help postprocess screencast videos of textual IF when standard transcripting is not possible. Run in numerical order to create a series of frames as `.png` files that have had duplicate frames largely removed from short sequences.
 
+
+## `mod/`
+A folder containing Python code intended to be imported as modules by other Python code.
 
 ## `specific_games/`
 A set of folders contains scripts that do various things with specific games. See their own README files for more info. If you're looking for interesting code, it's largely in subdirectories of this folder.
