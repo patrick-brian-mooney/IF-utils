@@ -46,4 +46,4 @@ A folder containing Python code intended to be imported as modules by other Pyth
 A set of folders contains scripts that do various things with specific games. See their own README files for more info. If you're looking for interesting code, it's largely in subdirectories of this folder.
 
 <p>&nbsp;</p>
-<footer>This file last updated 7 July 2022.</footer>
+<footer>This file last updated 25 Nov 2023.</footer>
