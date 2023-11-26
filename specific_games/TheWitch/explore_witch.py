@@ -16,13 +16,12 @@ import os
 from pathlib import Path
 import typing
 
-import terp_connection as tc
-
+from mod import terp_connection as tc
 
 witch_transcript_file = Path("/home/patrick/games/IF/competitions/[2023] IFComp 29/Games/The Witch/Transcript.txt")
 
 
-class WitchConnection(tc.TerpConnection):
+class WitchConnection(tc.FrotzTerpConnection):
     story_file_location = Path("/home/patrick/games/IF/competitions/[2023] IFComp 29/Games/The Witch/the_witch_1_230924.z5")
     inventory_answer_tag = "you're carrying:"
 
@@ -102,7 +101,7 @@ class WitchConnection(tc.TerpConnection):
           'score'       The current game score.
           'winnable'    Whether the game self-evaluates as winnable.
         """
-        ret = tc.TerpConnection.evaluate_context(self, output, command)
+        ret = tc.FrotzTerpConnection.evaluate_context(self, output, command)
         output_lines = [l.strip().casefold() for l in output.split('\n')]
 
         # Check to see what time it is, if we can tell.
