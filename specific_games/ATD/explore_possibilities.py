@@ -683,13 +683,7 @@ class ATDTerpConnection(tc.FrotzTerpConnection):
         "upstairs landing": {"hideable": True},
     }
 
-    @property
-    def rooms(self) -> tuple:
-        """Every TerpCLass needs to provide a .rooms attribute listing the names of
-        the rooms in the game in lowercase. We reuse the keys of the .room_list
-        attribute for that
-        """
-        return tuple(self.room_list.keys())
+    rooms = tuple(room_list.keys())
 
     mistake_messages = tc.FrotzTerpConnection.mistake_messages + [
         "but it barely leaves a mark.",  "but the glass stays in place.", "but there's no water here",
