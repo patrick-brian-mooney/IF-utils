@@ -916,7 +916,7 @@ def processUSR1(*args, **kwargs) -> None:
 
 def processUSR2(*args, **kwargs) -> None:
     """Handle the USR2 signal printing the current progress, then pausing for a moment."""
-    tc.safe_print("\nCurrent path length is: %s" % len(terp_proc.text_walkthrough))
+    tc.safe_print("\nCurrent path length is: %s" % len(terp_proc.list_walkthrough))
     tc.safe_print("Current path is:\n" + terp_proc.text_walkthrough + "\n\n")
     time.sleep(2)
 
