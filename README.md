@@ -17,6 +17,12 @@ Checks to see if two (or more) phrases are anagrams of each other.
 
 Usage: `check_anagram.py "a phrase" "another phrase" [...]`
 
+## `ll_hints.py`
+
+Decode numeric hints for IF games according to the type of "encoded" clues given in Scott Adams-style hints. Currently decodes hints for Wade Clarke's *Leadlight Gamma*, but may be adapted to be more flexible at some indefinite point in the future.
+
+Usage `ll_hints.py` [no command-line options] and follow the prompts.
+
 ## `morse.py`
 
 Morse code decoder. 
