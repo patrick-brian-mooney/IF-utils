@@ -615,12 +615,12 @@ class MetadataWriter(threading.Thread):
         with large files.
 
         Along with the data itself and the completion notification function, we also
-        queue a string representing the current time, which helps when overlooking the
+        queue a string representing the current time, which helps when monitoring the
         process during debugging.
         """
         tc.debug_print(f"    (queueing checkpoint data for saving, waiting to acquire lock ...)", min_level=4)
         with self.mutex:
-            tc.debug_print(f"    (lock aquired ...)", min_level=5)
+            tc.debug_print(f"    (lock acquired ...)", min_level=5)
             self.to_write.append((pickle.dumps(data, protocol=-1), datetime.datetime.now().isoformat(' ')))
             if len(self.to_write) > self._max_writing_queue_length:  # Grown too long? Just keep most recent entries.
                 sorted_queue = sorted(self.to_write, key=lambda i: i[1])
@@ -632,6 +632,13 @@ class MetadataWriter(threading.Thread):
 
     def _write(self) -> None:
         """Writes the data that is waiting to be written to disk.
+
+        # FIXME! Currently, we are just dumping the pickled data to disk, not
+        serializing it to JSON, because this is much faster, and serializing to JSON
+        is slow when we have lots of data in the dictionary. This makes the whole
+        process of pickling, queuing, and writing from another thread rather
+        unnecessary and overbuilt, but I'm leaving it for now, since we may go back
+        later and it does no harm.
         """
         while self.to_write:
             fname = None
@@ -645,7 +652,8 @@ class MetadataWriter(threading.Thread):
                     continue            # from the to_write queue. Still, be careful anyway.
                 tc.debug_print(f"    (writing individual checkpoint file with temporary name {fname})", min_level=4)
                 with open(fname, 'wt') as metadata_file:
-                    metadata_file.write(json.dumps(pickle.loads(data[0]), indent=2, default=str))
+                    metadata_file.write(data[0])
+                    # metadata_file.write(json.dumps(pickle.loads(data[0]), indent=2, default=str))
                 if self.parent.progress_checkpoint_file.exists():
                     new_name = Path(str(self.parent.progress_checkpoint_file) + '.bak')
                     self.parent.progress_checkpoint_file.rename(new_name)
@@ -715,7 +723,7 @@ class ATDTerpConnection(tc.FrotzTerpConnection):
         '*** Success. Final, lasting success. ***',]]
 
     # Filesystem config options
-    base_directory = Path(os.path.dirname(__file__)).resolve()
+    base_directory = Path("/home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD").resolve()
     working_directory = base_directory / 'working'
     progress_checkpoint_file = working_directory / 'progress.json'
 
@@ -892,7 +900,7 @@ def make_moves(depth: int = 0) -> None:
             finally:
                 moves += 1
                 total = dead_ends + successes
-                if (total % 1000 == 0) or ((tc.verbosity >= 2) and (total % 100 == 0)) or ((tc.verbosity >= 4) and (total % 20 == 0)):
+                if (moves % 1000 == 0) or ((tc.verbosity >= 2) and (moves % 100 == 0)) or ((tc.verbosity >= 4) and (moves % 20 == 0)):
                     tc.safe_print(f"Explored {total} complete paths so far, making {moves} total moves in %.2f hours" % (get_total_time() / 3600))
                 terp_proc._restore_terp_to_save_file(starting_frame['checkpoint'])
                 terp_proc._drop_history_frame()
