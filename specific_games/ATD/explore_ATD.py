@@ -13,11 +13,20 @@ file LICENSE for a copy of this license.
 
 
 import os
+
+from pathlib import Path
+
 import pprint
 import sys
 
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-pprint.pprint(f"Running under {sys.version}\n\nsys.path is {sys.path}\n\n\n\n")
+print(f"Running under: {sys.version}\nsys.path is:")
+pprint.pprint(f"{sys.path}\n\n\n\n")
+
+
+import pyximport        # http://cython.org
+pyximport.install(build_dir=Path("/home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/build"))
 
 
 import explore_possibilities as ep
