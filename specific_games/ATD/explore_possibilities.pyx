@@ -604,7 +604,7 @@ class MetadataWriter(threading.Thread):
             self.queue_for_write(data)
 
     def queue_for_write(self, data: typing.Dict[str, typing.Dict[str, typing.Union[int, float]]]) -> None:
-        """Adds DATA (a structured file record) to the to-write queue. We pickle it on
+        """Adds DATA (a structured progress record) to the to-write queue. We pickle it on
         adding, then unpickle right before writing, because we want a snapshot of the
         data when it enters the queue, not a reference to data that may continue to
         change, including right while we're serializing it to JSON. Queueing a pickled
@@ -622,7 +622,9 @@ class MetadataWriter(threading.Thread):
         with self.mutex:
             tc.debug_print(f"    (lock acquired ...)", min_level=5)
 
-            self.to_write.append((pickle.dumps(data, protocol=-1), datetime.datetime.now().isoformat(' ')))
+            # Not only is protocol 5 fastest on my system (for this data, under Python 3.9), it's almost twice as fast
+            # as calling it protocol -1, even though -1 means "latest available," which is 5
+            self.to_write.append((pickle.dumps(data, protocol=5), datetime.datetime.now().isoformat(' ')))
             if len(self.to_write) > self._max_writing_queue_length:  # Grown too long? Just keep most recent entries.
                 sorted_queue = sorted(self.to_write, key=lambda i: i[1])
                 tc.debug_print(f"      (pruning save queue ... there are {len(sorted_queue)} entries queued from {sorted_queue[0][2]} to {sorted_queue[-1][2]})", min_level=3)
@@ -1014,7 +1016,7 @@ def main():
     play_game()
 
 
-# Some testing routines
+# Some testing routines, never called by the main program code.
 def experimental_save(data: bytes,
                       base_checkpoint_name: Path = ATDTerpConnection.progress_checkpoint_file,
                       pickle_protocol: int = -1,
@@ -1048,25 +1050,43 @@ def experimental_save(data: bytes,
 
 def test_experimental_save() -> None:
     """Test harness to run all meaningful combinations of parameters on
-    experimental_save, printing timing data to stdout along the way.
+    experimental_save, printing timing data to stdout along the way. Never called
+    by the main program code.
     """
     import bz2, gzip        # So the first time we use each compression type, the call doesn't get penalized
     import time
 
     with open(ATDTerpConnection.progress_checkpoint_file, mode='rb') as pc_file:
-        progress_data = pc_file.read()
+        prog_data = pc_file.read()
 
     for prot in range(-1, 1+pickle.HIGHEST_PROTOCOL):
         for use_bz in (False, True):
             start = time.monotonic()
-            fname = experimental_save(progress_data, Path('/tmp/test.pkl'), pickle_protocol=prot, use_bzip2=use_bz)
+            fname = experimental_save(prog_data, Path('/tmp/test.pkl'), pickle_protocol=prot, use_bzip2=use_bz)
             print(f"\n\nUsed protocol {prot} and {'bzip2' if use_bz else 'gzip'}, took {time.monotonic() - start} seconds")
             print(f"  ... file is {os.path.getsize(fname)} bytes")
 
 
+def test_pickle_protocol_speed() -> None:
+    """Text harness to test pickling speed under different pickle protocols on my
+    system, printing timing data to stdout along the way. Never called by the main
+    program code.
+    """
+    import time
+    with open(ATDTerpConnection.progress_checkpoint_file, mode='rb') as pc_file:
+        prog_data = pc_file.read()
+
+    for prot in range(-1, 1 + pickle.HIGHEST_PROTOCOL):
+        start = time.monotonic()
+        _ = pickle.loads(pickle.dumps(prog_data, prot))
+        print(f"\n\nUsed protocol {prot}; serialized to memory in {time.monotonic() - start:.4f} seconds")
+
+
+
 if __name__ == "__main__":
     if False:
-        test_experimental_save()
+        # test_experimental_save()
+        test_pickle_protocol_speed()
         sys.exit()
 
     tc.safe_print("No self-test code in this module, sorry! explore_ATD.py is a wrapper that runs this code.")
