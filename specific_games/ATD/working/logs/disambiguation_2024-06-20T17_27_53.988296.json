@@ -1,0 +1,15 @@
+{
+  "command": "wait",
+  "failed": false,
+  "mistake": false,
+  "output": "The Deutsch Laboratory                               4:23:05 am\n.\n  Please give one of the answers above.",
+  "success": false,
+  "traceback": [
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/./explore_ATD.py, line 37 in <module>>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 718 in make_single_move>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 709 in execute_command>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 677 in evaluate_context>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 288 in document_problem>"
+  ],
+  "turns": 53
+}

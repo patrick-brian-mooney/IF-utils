@@ -1,0 +1,8 @@
+{
+  "command": "go north",
+  "error": "[Errno 2] No such file or directory: '/home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/working/saves/c37fc4a1-bd16-4789-af43-94d6c55fa461'",
+  "traceback": [
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/./explore_ATD.py, line 37 in <module>>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 288 in document_problem>"
+  ]
+}

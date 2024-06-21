@@ -1,0 +1,16 @@
+{
+  "exists": false,
+  "filename": "/home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/working/saves/c37fc4a1-bd16-4789-af43-94d6c55fa461",
+  "output": [
+    "A quick noise from behind, then a strong grip on your wrist. The guard is\n  back -- time has slipped away from you.\n\n  Deaf to your protests, the guard disarms your bomb, handcuffs you and\n  forces you into a dark sedan. You speed through the chill Boston night,\n  head held in your hands, almost oblivious to the blur of the suburbs\n  rushing past.\n\n  Half an hour later, the car pulls up outside a non-descript building and\n  you are dragged inside then thrown into a small cell to await questioning.\n\n  *******\n\n  Wednesday 13th October 2004\n\n  At precisely 9:27 am this morning a catastrophe of unprecedented scale\n  occurred. An immense explosion -- that could only have been atomic in\n  nature -- tore through the city and suburbs of Boston MA, destroying all in\n  its path. Casualties are expected to number in the millions. The President\n.\n   The Deutsch Laboratory                               4:23:05 am\n.\n  has declared a state of emergency across the nation and the military is\n  mobilizing for a possible war with the as yet unknown enemy.\n\n  This thing all things devours:\n  birds, beasts, trees, flowers;\n  gnaws iron, bites steel;\n  grinds hard stones to meal;\n  slays king, ruins town;\n  and beats high mountain down.\n.\n      *** You have failed ***\n.\n  Would you like to RESTART, RESTORE a saved game, UNDO your last move or\n  QUIT?\n> >    The Deutsch Laboratory                               4:23:05 am\n.\n  Please give one of the answers above.",
+    "The Deutsch Laboratory                               4:23:05 am\n.\n  Please give one of the answers above."
+  ],
+  "traceback": [
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/./explore_ATD.py, line 37 in <module>>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 718 in make_single_move>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 709 in execute_command>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 696 in evaluate_context>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 497 in save_terp_state>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 288 in document_problem>"
+  ]
+}
