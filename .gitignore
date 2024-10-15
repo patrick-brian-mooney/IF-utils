@@ -14,3 +14,4 @@ lib64
 specific_games/ATD/build/
 build/
 lib.linux
+lib.linux*

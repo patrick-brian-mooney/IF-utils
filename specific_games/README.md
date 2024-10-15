@@ -7,6 +7,9 @@ A re-implementation of <span class="vcard"><a class="fn url" href="http://nickm.
 ## `ATD/`
 A script to hack at the solution space in <span class="vcard"><span class="vcard">Toby Ord</span>'s <a rel="muse" class="url" href="http://www.amirrorclear.net/flowers/game/devours/">All Things Devours</a></span>.
 
+## `FocalShift/`
+Contains a script to help with the hacking mini-games in Fred Snyder's *Focal Shift*, an entry in IFComp 2024.
+
 ## `NBM/`
 Some scrips to brute-force some of the mazes in (beta version 1.62 of) <span class="vcard"><span class="fn">Greg Boettcher</span>'s <a class="url" rel="muse" href="https://gregboettcher.com/mazes/">Nothing But Mazes</a></span>.
 
