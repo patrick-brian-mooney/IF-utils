@@ -81,10 +81,10 @@ def further_constrain(constraints: List[Tuple[str, ...]],
                       guess: str,
                       feedback: str) -> List[Tuple[str, str]]:
     """Given a list of pre-existing CONSTRAINTS, the GUESS the user most recently
-    made, the GUESS the user most recently made, and the FEEDBACK that the system
-    provided, returns a new set of constraints that restricts the possibility space
-    for solutions at least as much (and hopefully more), based on the information
-    that the machine revealed in the response to the current guess.
+    made, and the FEEDBACK that the system provided, returns a new set of
+    constraints that restricts the possibility space for solutions at least as much
+    (and hopefully more), based on the information that the machine revealed in the
+    response to the current guess.
 
     CONSTRAINTS is a list of six tuples, where each tuple is of the format
         (lowest possible letter, highest possible letter); bounds are inclusive.
