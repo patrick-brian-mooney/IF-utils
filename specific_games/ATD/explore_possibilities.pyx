@@ -666,7 +666,8 @@ class MetadataWriter(threading.Thread):
             finally:
                 if fname.exists():  # If we got this far and the temp file still exists, delete it.
                     fname.unlink()
-        tc.debug_print(f"    (all queued checkpoint files written!)", min_level=2)
+        tc.debug_print(f"{str(datetime.datetime.now())} :     (all queued checkpoint files written!)",
+                       min_level=2)
         self.parent.checkpoint_writer = None
 
     def run(self) -> None:
@@ -764,7 +765,7 @@ class ATDTerpConnection(tc.FrotzTerpConnection):
         }
 
         if (datetime.datetime.now() - last_checkpoint_time).seconds >= minimum_checkpointing_interval:
-            tc.debug_print("(preparing to save algorithm progress data.)", 2)
+            tc.debug_print("{str(datetime.datetime.now())} : (preparing to save algorithm progress data.)", 2)
             clean_progress_data()
 
             try:
@@ -863,7 +864,7 @@ def make_moves(depth: int = 0) -> None:
     effect on the visual printing of each step that occurs at debugging verbosity
     levels 3+.
     """
-    global successes, dead_ends, moves, maximum_walkthrough_length
+    global successes, dead_ends, moves, maximum_walkthrough_length, terp_proc
 
     if is_redundant_strand(terp_proc.text_walkthrough):      # If we've tracked that we've been down this path, skip it.
         return
@@ -904,7 +905,10 @@ def make_moves(depth: int = 0) -> None:
                 moves += 1
                 total = dead_ends + successes
                 if (moves % 1000 == 0) or ((tc.verbosity >= 2) and (moves % 100 == 0)) or ((tc.verbosity >= 4) and (moves % 20 == 0)):
-                    tc.safe_print(f"Explored {total} complete paths so far, making {moves} total moves in %.2f hours" % (get_total_time() / 3600))
+                    num_sols = len(terp_proc.successful_paths_directory.glob('*'))
+                    tc.safe_print(f"{str(datetime.datetime.now())} : Explored {total} complete paths so far, finding "
+                                  f"{num_sols} solutions and making {moves} total "
+                                  f"moves in {(get_total_time() / 3600):.2f} hours")
                 terp_proc._restore_terp_to_save_file(starting_frame['checkpoint'])
                 terp_proc._drop_history_frame()
     if len(terp_proc.context_history.maps) % 4 == 0:

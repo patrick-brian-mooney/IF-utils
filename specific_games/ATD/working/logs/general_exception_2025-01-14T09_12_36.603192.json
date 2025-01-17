@@ -1,0 +1,8 @@
+{
+  "command": "go north",
+  "error": "I/O operation on closed file.",
+  "traceback": [
+    "<FrameSummary file ./explore_ATD.py, line 37 in <module>>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 288 in document_problem>"
+  ]
+}
