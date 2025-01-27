@@ -765,7 +765,7 @@ class ATDTerpConnection(tc.FrotzTerpConnection):
         }
 
         if (datetime.datetime.now() - last_checkpoint_time).seconds >= minimum_checkpointing_interval:
-            tc.debug_print("{str(datetime.datetime.now())} : (preparing to save algorithm progress data.)", 2)
+            tc.debug_print(f"{str(datetime.datetime.now())} : (preparing to save algorithm progress data.)", 2)
             clean_progress_data()
 
             try:
@@ -905,7 +905,7 @@ def make_moves(depth: int = 0) -> None:
                 moves += 1
                 total = dead_ends + successes
                 if (moves % 1000 == 0) or ((tc.verbosity >= 2) and (moves % 100 == 0)) or ((tc.verbosity >= 4) and (moves % 20 == 0)):
-                    num_sols = len(terp_proc.successful_paths_directory.glob('*'))
+                    num_sols = len(list(terp_proc.successful_paths_directory.glob('*')))
                     tc.safe_print(f"{str(datetime.datetime.now())} : Explored {total} complete paths so far, finding "
                                   f"{num_sols} solutions and making {moves} total "
                                   f"moves in {(get_total_time() / 3600):.2f} hours")
