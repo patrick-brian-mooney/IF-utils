@@ -592,7 +592,7 @@ class MetadataWriter(threading.Thread):
     """
     _max_writing_queue_length = 3      # Maximum number of to-write objects tracked.
 
-    def __init__(self, parent: 'ATDTerpConnection',
+    def __init__(self, parent: 'ATD_tc',
                  data: typing.Optional[dict] = None):
         if data:
             assert isinstance(data, dict)
@@ -947,7 +947,7 @@ def set_up() -> None:
         tc.debug_print("  no command-line arguments!", 2)
     tc.debug_print('  final verbosity is: %d' % tc.verbosity, 2)
 
-    terp_proc = ATDTerpConnection()
+    terp_proc = ATDExplorerTerpConnection()
     load_progress_data()
 
 
@@ -960,7 +960,7 @@ def main():
 
 # Some testing routines, never called by the main program code.
 def experimental_save(data: bytes,
-                      base_checkpoint_name: Path = ATDTerpConnection.progress_checkpoint_file,
+                      base_checkpoint_name: Path = ATDExplorerTerpConnection.progress_checkpoint_file,
                       pickle_protocol: int = -1,
                       use_bzip2: bool = True) -> Path:
     """A utility function to be called from the debugger. It is never used by the main
@@ -983,7 +983,7 @@ def experimental_save(data: bytes,
         import gzip
         comp_func, ext = gzip.open, '.gz'
 
-    fname = Path(str(ATDTerpConnection.progress_checkpoint_file) + str(pickle_protocol) + ext)
+    fname = Path(str(ATD_tc.progress_checkpoint_file) + str(pickle_protocol) + ext)
     with comp_func(fname, mode='wb') as datafile:
         pickle.dump(pickle.loads(data), datafile, protocol=pickle_protocol)
 
@@ -997,7 +997,7 @@ def test_experimental_save() -> None:
     """
     import time
 
-    with open(ATDTerpConnection.progress_checkpoint_file, mode='rb') as pc_file:
+    with open(ATD_tc.progress_checkpoint_file, mode='rb') as pc_file:
         prog_data = pc_file.read()
 
     for prot in range(-1, 1+pickle.HIGHEST_PROTOCOL):
@@ -1014,7 +1014,7 @@ def test_pickle_protocol_speed() -> None:
     program code.
     """
     import time
-    with open(ATDTerpConnection.progress_checkpoint_file, mode='rb') as pc_file:
+    with open(ATD_tc.progress_checkpoint_file, mode='rb') as pc_file:
         prog_data = pc_file.read()
 
     for prot in range(-1, 1 + pickle.HIGHEST_PROTOCOL):
