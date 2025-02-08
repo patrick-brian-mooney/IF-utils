@@ -41,6 +41,8 @@ maximum_verbosity_level = 4
 
 
 print_mutex = threading.Lock()
+
+
 def safe_print(*args, **kwargs) -> None:
     """Print safely, i.e. in a way that ensures multiple threads aren't trying to print
     at the same time and stepping on each other's output.
