@@ -3,14 +3,11 @@
 """A collection of subclasses of the TerpConnection classes, each specialized (or
 semi-specialized) for interacting with specific games.
 """
+
+from typing import List, Union
 from pathlib import Path
 
 from mod import terp_connection as tc
-
-if __name__ == "__main__":
-    import sys
-    print("Sorry, no self-test code here!")
-    sys.exit(1)
 
 
 class ATDTerpConnection(tc.FrotzTerpConnection):
@@ -33,6 +30,8 @@ class ATDTerpConnection(tc.FrotzTerpConnection):
         "the deutsch laboratory": {"hideable": False},
         "upstairs landing": {"hideable": True},
     }
+    for room_name in room_list:
+        room_list[room_name]['room-name'] = room_name
 
     rooms = tuple(room_list.keys())
 
@@ -76,3 +75,52 @@ class ATDTerpConnection(tc.FrotzTerpConnection):
     save_file_directory = working_directory / 'saves'
     successful_paths_directory = working_directory / 'successful_paths'
     logs_directory = working_directory / 'logs'
+
+    def is_status_line(self, text: str) -> bool:
+        """Return True if PARAGRAPH is a status bar produced by the 'terp, or FALSE
+        otherwise. (This is necessary because dfrotz mixes the status bar text in with
+        the rest of the program-produced text.)
+
+        Status bars for All Things Devours have the format
+        "[ROOM NAME] [blank space] [CLOCK TIME]", where ROOM NAME is the name of a known
+        room, and CLOCK TIME is an HH:MM:SS-format time is between 4:17 and (I think)
+        4:23, where the seconds are divisible by 5.
+        """
+        text = text.strip().casefold()
+        if not text.startswith(tuple(self.room_list.keys())):
+            return False
+
+        for room_name in self.room_list:
+            if text.startswith(room_name):      # if we get this far, the text definitely matches ONE of the room names
+                text = text[len(room_name):].strip()
+
+        try:
+            h, m, s = text.split(':')
+            if int(h) != 4:
+                return False
+            if not (17 <= int(m) <= 23):
+                return False
+            if not (int(s) % 5 == 0):
+                return False
+        except (ValueError,):
+            return False
+
+        return True
+
+    def find_status_line(self, text: List[str]) -> Union[int, None]:
+        """Given TEXT, a broken-into-lines list of strings, returns the (zero-based)
+        index of the line that contains the status bar.
+        """
+        for i, line in enumerate(text):
+            if self.is_status_line(line):
+                return i
+        return None
+
+    def is_room_name_line(self, line: str) -> bool:
+        pass        #FIXME!
+
+
+if __name__ == "__main__":
+    import sys
+    print("Sorry, no self-test code here!")
+    sys.exit(1)

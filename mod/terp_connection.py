@@ -164,7 +164,7 @@ class FrotzTerpConnection(object):
 
     disambiguation_messages = ["which do you mean", "please give one of the answers above"]
 
-    failure_messages = [l.strip().casefold() for l in ['*** You have died ***,']]
+    failure_messages = [l.strip().casefold() for l in ['*** You have died ***',]]
     success_messages = [l.strip().casefold() for l in ['*** You have won ***',]]
 
     # Configuration options that can be overridden in subclasses
@@ -187,7 +187,8 @@ class FrotzTerpConnection(object):
     logs_directory = None
 
     # Some parameters that can be overridden in subclasses to change behavior.
-    transcript = True
+    do_create_transcript = True
+    do_erase_saves_on_start = True
 
     @staticmethod
     def _validate_directory(p: Path,
@@ -213,22 +214,20 @@ class FrotzTerpConnection(object):
             debug_print("(deleting %s ...)" % sav, 3)
             sav.unlink()
 
-    def _set_up(self) -> None:
-        """Set up the necessary directories. Not particularly robust against malicious
-        interference and race conditions, but this script is just for me, anyway.
-        Assumes a cooperative, reasonably competent user.
+    def _validate_directories(self) -> None:
+        """Validate that all the directories that are supposed to exist do exist
+        and are directories. Not particularly robust against malicious interference
+        and race conditions, but this script is just for me, anyway. Assumes a
+        cooperative, reasonably competent user.
         """
         self._validate_directory(self.working_directory, "working")
         self._validate_directory(self.save_file_directory, "save file")
-        self._validate_directory(self.logs_directory, 'logs')
+        self._validate_directory(self.logs_directory, 'interpreter logs')
         debug_print("  directory structure validated!")
 
-        self._empty_save_files()
-
-    def __init__(self):
-        """Opens a connection to a 'terp process that plays ATD. Saves a reference to that
-        process. Wraps its STDOUT stream in a nonblocking wrapper. Saves a reference to
-        that wrapper. Initializes the command-history data structure. Does other setup.
+    def _validate_class_definitions(self) -> None:
+        """Check to make sure that basic class attributes are set up the way that they
+        need to be.
         """
         assert self.rooms, f"ERROR! Class {self.__class__.__name__} does not specify a list of room names!"
         assert self.story_file_location, f"ERROR! Class {self.__class__.__name__} does not specify a story file location!"
@@ -244,15 +243,34 @@ class FrotzTerpConnection(object):
         assert self.save_file_directory.is_dir(), f"ERROR! {self.save_file_directory} does not exist or is not a directory!"
         assert self.logs_directory.is_dir(), f"ERROR! {self.logs_directory} does not exist or is not a directory!"
 
+    def _initialize_interpreter_process(self) -> None:
+        """Set up the external process that runs the interpreter program and get it
+        running.
+        """
         parameters = [str(self.interpreter_location)] + self.interpreter_flags + [str(self.story_file_location)]
         self._proc = subprocess.Popen(parameters, shell=False, universal_newlines=True, bufsize=1,
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self._reader = NonBlockingStreamReader(self._proc.stdout)
         opening_context = self.evaluate_context(self._get_output(), command='[game start]')
         self.context_history = collections.ChainMap(opening_context)
-        self._set_up()
-        if self.transcript:
+
+    def _set_up(self) -> None:
+        """Do basic setup on the 'terp object.
+        """
+        self._validate_directories()
+        self._validate_class_definitions()
+        if self.do_erase_saves_on_start:
+            self._empty_save_files()
+        self._initialize_interpreter_process()
+        if self.do_create_transcript:
             self.SCRIPT()
+
+    def __init__(self):
+        """Opens a connection to a 'terp process that plays ATD. Saves a reference to that
+        process. Wraps its STDOUT stream in a nonblocking wrapper. Saves a reference to
+        that wrapper. Initializes the command-history data structure. Does other setup.
+        """
+        self._set_up()
 
     def __str__(self) -> str:
         ret =  f"< {self.__class__.__name__} object; "
