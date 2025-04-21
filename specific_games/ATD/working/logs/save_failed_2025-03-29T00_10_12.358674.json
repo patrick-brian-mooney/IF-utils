@@ -1,0 +1,16 @@
+{
+  "exists": false,
+  "filename": "/home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/working/saves/256fb6e8-a25f-4245-8b6d-69ea8c761188",
+  "output": [
+    "",
+    ""
+  ],
+  "traceback": [
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/specific_games/ATD/./explore_ATD.py, line 37 in <module>>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 720 in make_single_move>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 711 in execute_command>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 698 in evaluate_context>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 499 in save_terp_state>",
+    "<FrameSummary file /home/patrick/Documents/programming/python_projects/IF utils/mod/terp_connection.py, line 290 in document_problem>"
+  ]
+}

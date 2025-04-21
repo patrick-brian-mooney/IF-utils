@@ -289,9 +289,9 @@ class FrotzTerpConnection(object):
         ret += " >"
         return ret
 
-    def document_problem(self,
-                         problem_type: str,
+    def document_problem(self, problem_type: str,
                          data: dict,  # FIXME: containing what?
+                         the_error: typing.Optional[typing.Type[BaseException]] = None,
                          also_print: bool = True) -> None:
         """Document the fact that a problem situation arose.
 
@@ -304,12 +304,23 @@ class FrotzTerpConnection(object):
 
         If ALSO_PRINT is True (the default), also dumps the complaint to the terminal.
         """
+        assert isinstance(problem_type, str)
+        assert isinstance(data, dict)
+        if the_error is not None:
+            assert isinstance(the_error, BaseException)
+
         found = False
-        data['traceback'] = traceback.extract_stack()
+        if the_error:
+            data['traceback'] = ''.join(traceback.format_tb(the_error.__traceback__))
+            data['error'] = the_error
+        else:
+            data['traceback'] = traceback.extract_stack()
+
         while not found:
             p = self.logs_directory / (problem_type + '_' + datetime.datetime.now().isoformat().replace(':', '_') + '.json')
             found = not p.exists()
-        p.write_text(json.dumps(data, indent=2, default=str, sort_keys=True))
+
+        p.write_text(json.dumps(data, indent=2, default=repr, sort_keys=True))
         if also_print:
             safe_print("PROBLEM TYPE: " + problem_type + '\n\nData:\n')
             safe_pprint(data)
@@ -438,7 +449,10 @@ class FrotzTerpConnection(object):
 
     @property
     def _all_checkpoints(self) -> typing.List[Path]:
-        """Convenience function to get a list of all checkpoints currently tracked by the FrotzTerpConnection."""
+        """Convenience function to get a list of all checkpoints currently tracked by the FrotzTerpConnection.
+        """
+        if not hasattr(self, "context_history"):    # if we aren't fully set up yet, we don't have this attribute
+            return list()                           # and therefore haven't yet created any checkpoints
         return [frame['checkpoint'] for frame in self.context_history.maps if 'checkpoint' in frame]
 
     def has(self, what: str) -> bool:
@@ -511,7 +525,6 @@ class FrotzTerpConnection(object):
         p = self._generate_save_name()
         debug_print("(saving 'terp state to %s)" % p, 5)
         _ = self.process_command_and_return_output('save', be_patient=False)   # We can't expect to get a response here: the 'terp doesn't necessarily end its response with \n, because it's waiting for a response on the same line, so we won't get the prompt text until after we've passed the prompt answer in.
-        # output = self.process_command_and_return_output(os.path.relpath(p, self.base_directory), be_patient=False)        #FIXME! remove this old line
         output = self.process_command_and_return_output(os.path.relpath(p, Path(os.getcwd())), be_patient=False)
         if ("save failed" in output.casefold()) or (not p.exists()):
             self.document_problem(problem_type='save_failed',
@@ -550,7 +563,9 @@ class FrotzTerpConnection(object):
         ret = [l for l in ret if (l.strip() and not l.strip().strip('>').casefold().startswith(self.inventory_answer_tag))]
         ret = [l for l in ret if not l.strip().casefold().startswith(self.rooms)]
         if not ret:
-            self.document_problem('cannot_get_inventory', data={'inventory_text': inventory_text, 'note': f"'{self.inventory_answer_tag}' not in output text!"})
+            self.document_problem('cannot_get_inventory',
+                                  data={'inventory_text': inventory_text,
+                                        'note': f"'{self.inventory_answer_tag}' not in output text!"})
         return ret
 
     def _get_score_text(self) -> str:
@@ -743,8 +758,10 @@ class FrotzTerpConnection(object):
         return new_context
 
 
-# Some experimental adaptations to adapt the harness so it can also run a Glulx 'terp. Not yet functional.
 class GlulxeTerpConnection(FrotzTerpConnection):
+    """Some experimental adaptations to adapt the harness so that it can also run a
+    Glulx 'terp. Not yet functional.
+    """
     interpreter_location = Path('/home/patrick/bin/glulxe/glulxe').resolve()
     interpreter_flags = [][:]
 

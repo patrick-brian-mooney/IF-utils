@@ -44,7 +44,7 @@ def get_name_value(word: str) -> int:
     return sum(get_name_value(c) for c in word)
 
 
-def print_word_values(what_words: typing.List[str]) -> None:
+def print_word_values(what_words: List[str]) -> None:
     """Do the actual work of printing out the calculated values for each string in
     WHAT_WORDS. Iterates over each string in that list. If a string in that list is
     made of more than one whitespace-separated word, print each word separately, just
